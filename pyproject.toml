@@ -4,10 +4,19 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "drost-ai"
-version = "0.1.0"
-description = "Drost's container-native offensive security MCP toolkit"
+version = "1.0.0"
+description = "Drost Community Edition: a container-native offensive security MCP toolkit"
 readme = "README.md"
+license = "Apache-2.0"
 requires-python = ">=3.11"
+keywords = ["mcp", "security", "offensive-security", "security-automation"]
+classifiers = [
+  "Development Status :: 5 - Production/Stable",
+  "License :: OSI Approved :: Apache Software License",
+  "Programming Language :: Python :: 3",
+  "Programming Language :: Python :: 3 :: Only",
+  "Topic :: Security",
+]
 dependencies = [
   "mcp>=1.0",
   "requests>=2.31",

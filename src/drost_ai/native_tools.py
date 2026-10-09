@@ -169,7 +169,7 @@ def hibp_password_range(password: str) -> dict[str, Any]:
     prefix, suffix = digest[:5], digest[5:]
     response = requests.get(
         f"https://api.pwnedpasswords.com/range/{prefix}",
-        headers={"Add-Padding": "true", "User-Agent": "drost-ai/0.1"},
+        headers={"Add-Padding": "true", "User-Agent": "drost-ai/1.0"},
     )
     response.raise_for_status()
     count = 0
@@ -195,7 +195,7 @@ def lookup_cve(cve_id: str) -> dict[str, Any]:
     response = requests.get(
         "https://services.nvd.nist.gov/rest/json/cves/2.0",
         params={"cveId": normalized},
-        headers={"User-Agent": "drost-ai/0.1"},
+        headers={"User-Agent": "drost-ai/1.0"},
     )
     response.raise_for_status()
     return {"source": "NVD", "cve_id": normalized, "response": response.json()}
