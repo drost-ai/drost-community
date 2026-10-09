@@ -8,6 +8,7 @@ import os
 import selectors
 import subprocess
 import sys
+import time
 
 
 def send(process: subprocess.Popen[str], payload: dict) -> None:
@@ -80,9 +81,9 @@ def main() -> None:
         listed = receive(process, 2)
         tools = listed["result"]["tools"]
         names = [tool["name"] for tool in tools]
-        minimum_tools = 23 if compact else 113
-        if len(names) < minimum_tools:
-            raise RuntimeError(f"catalog unexpectedly small: {len(names)}")
+        expected_tool_count = 26 if compact else 132
+        if len(names) != expected_tool_count:
+            raise RuntimeError(f"expected {expected_tool_count} MCP tools; found {len(names)}")
         if len(names) != len(set(names)):
             raise RuntimeError("duplicate MCP tool names")
         if not all(name.startswith("drost_") for name in names):
@@ -105,12 +106,15 @@ def main() -> None:
                 "jsonrpc": "2.0",
                 "id": 3,
                 "method": "tools/call",
-                "params": {"name": "drost_catalog", "arguments": {"missing_only": True}},
+                "params": {"name": "drost_catalog", "arguments": {}},
             },
         )
         called = receive(process, 3)
         if "error" in called:
             raise RuntimeError(called["error"])
+        catalog_payload = structured_result(called)
+        if "drost_grep" not in {tool["name"] for tool in catalog_payload["tools"]}:
+            raise RuntimeError("drost_grep is missing from the complete catalog")
         send(
             process,
             {
@@ -240,6 +244,93 @@ def main() -> None:
         isolated_read = receive(process, 11)
         if structured_result(isolated_read)["content"] != "first-engagement\n":
             raise RuntimeError("engagement workspace isolation failed")
+        send(
+            process,
+            {
+                "jsonrpc": "2.0",
+                "id": 12,
+                "method": "tools/call",
+                "params": {
+                    "name": "drost_execute" if compact else "drost_grep",
+                    "arguments": (
+                        {
+                            "tool": "drost_grep",
+                            "engagement_id": engagement_id,
+                            "arguments": ["-n", "first-engagement", "smoke/mcp.txt"],
+                        }
+                        if compact
+                        else {
+                            "engagement_id": engagement_id,
+                            "arguments": ["-n", "first-engagement", "smoke/mcp.txt"],
+                        }
+                    ),
+                },
+            },
+        )
+        grep_called = receive(process, 12)
+        if "first-engagement" not in structured_result(grep_called)["stdout"]:
+            raise RuntimeError("drost_grep did not search the engagement workspace")
+        send(
+            process,
+            {
+                "jsonrpc": "2.0",
+                "id": 13,
+                "method": "tools/call",
+                "params": {
+                    "name": executable_name,
+                    "arguments": (
+                        {
+                            "tool": "drost_nmap",
+                            "engagement_id": engagement_id,
+                            "arguments": ["-Pn", "--scan-delay", "1s", "-p", "1-100", "127.0.0.1"],
+                        }
+                        if compact
+                        else {
+                            "engagement_id": engagement_id,
+                            "arguments": ["-Pn", "--scan-delay", "1s", "-p", "1-100", "127.0.0.1"],
+                        }
+                    ),
+                },
+            },
+        )
+        time.sleep(0.3)
+        send(
+            process,
+            {
+                "jsonrpc": "2.0",
+                "id": 14,
+                "method": "tools/call",
+                "params": {"name": "drost_engagement_list", "arguments": {}},
+            },
+        )
+        concurrent_called = receive(process, 14, timeout=5.0)
+        if "error" in concurrent_called or concurrent_called["result"].get("isError", False):
+            raise RuntimeError("long executable blocked a concurrent MCP call")
+        send(
+            process,
+            {
+                "jsonrpc": "2.0",
+                "method": "notifications/cancelled",
+                "params": {"requestId": 13, "reason": "Drost cancellation smoke test"},
+            },
+        )
+        time.sleep(0.3)
+        send(
+            process,
+            {
+                "jsonrpc": "2.0",
+                "id": 15,
+                "method": "tools/call",
+                "params": {
+                    "name": "drost_process_snapshot",
+                    "arguments": {"include_connections": False},
+                },
+            },
+        )
+        snapshot_called = receive(process, 15, timeout=5.0)
+        processes = structured_result(snapshot_called)["processes"]
+        if any("--scan-delay" in " ".join(item.get("cmdline") or []) for item in processes):
+            raise RuntimeError("cancelled executable remained alive in the container")
         print(
             json.dumps(
                 {
@@ -253,6 +344,9 @@ def main() -> None:
                     "engagement_plan_ok": True,
                     "workspace_roundtrip_ok": True,
                     "engagement_isolation_ok": True,
+                    "grep_call_ok": True,
+                    "concurrent_call_ok": True,
+                    "cancellation_cleanup_ok": True,
                     "engagement_id": engagement_id,
                     "second_engagement_id": second_id,
                 },

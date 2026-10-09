@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import argparse
+import asyncio
 import json
 import os
 import shutil
@@ -49,14 +50,14 @@ REGISTERED_CATALOG = _registered_catalog()
 
 
 def _external_tool(spec: ToolSpec) -> Callable[..., dict[str, Any]]:
-    def run(
+    async def run(
         engagement_id: str,
         arguments: list[str],
         working_directory: str = ".",
         stdin: str | None = None,
     ) -> dict[str, Any]:
         """Run a Drost container executable with explicit argv tokens."""
-        result = execute_tool(
+        result = await execute_tool(
             spec.executable,
             arguments,
             engagement_id=engagement_id,
@@ -123,64 +124,64 @@ def drost_catalog(category: str | None = None, missing_only: bool = False, regis
 
 
 @mcp.tool(name="drost_execute", description="Execute any executable-backed Drost catalog entry from the selected engagement namespace; use relative paths for engagement artifacts.", structured_output=True)
-def drost_execute(tool: str, engagement_id: str, arguments: list[str], working_directory: str = ".", stdin: str | None = None) -> dict[str, Any]:
+async def drost_execute(tool: str, engagement_id: str, arguments: list[str], working_directory: str = ".", stdin: str | None = None) -> dict[str, Any]:
     spec = next((entry for entry in CATALOG if entry.name == tool), None)
     if spec is None:
         raise ValueError(f"unknown Drost catalog tool: {tool}")
-    result = execute_tool(spec.executable, arguments, engagement_id=engagement_id, working_directory=working_directory, stdin=stdin)
+    result = await execute_tool(spec.executable, arguments, engagement_id=engagement_id, working_directory=working_directory, stdin=stdin)
     result["drost_tool"] = spec.name
     result["category"] = spec.category
     return result
 
 
 @mcp.tool(name="drost_engagement_create", description="Create a persistent engagement namespace and return its server-generated ID.", structured_output=True)
-def drost_engagement_create(name: str, targets: list[str], objective: str = "") -> dict[str, Any]:
-    return create_engagement(name, targets, objective)
+async def drost_engagement_create(name: str, targets: list[str], objective: str = "") -> dict[str, Any]:
+    return await asyncio.to_thread(create_engagement, name, targets, objective)
 
 
 @mcp.tool(name="drost_engagement_list", description="List persistent Drost engagements available for client-side selection.", structured_output=True)
-def drost_engagement_list() -> dict[str, Any]:
-    return list_engagements()
+async def drost_engagement_list() -> dict[str, Any]:
+    return await asyncio.to_thread(list_engagements)
 
 
 @mcp.tool(name="drost_engagement_get", description="Return metadata for one server-generated Drost engagement ID.", structured_output=True)
-def drost_engagement_get(engagement_id: str) -> dict[str, Any]:
-    return get_engagement(engagement_id)
+async def drost_engagement_get(engagement_id: str) -> dict[str, Any]:
+    return await asyncio.to_thread(get_engagement, engagement_id)
 
 
 @mcp.tool(name="drost_workspace_list", description="List files within the Drost engagement workspace.", structured_output=True)
-def drost_workspace_list(engagement_id: str, path: str = ".", recursive: bool = False) -> dict[str, Any]:
-    return list_workspace(engagement_id, path, recursive)
+async def drost_workspace_list(engagement_id: str, path: str = ".", recursive: bool = False) -> dict[str, Any]:
+    return await asyncio.to_thread(list_workspace, engagement_id, path, recursive)
 
 
 @mcp.tool(name="drost_workspace_read", description="Read a UTF-8 text file from the Drost engagement workspace.", structured_output=True)
-def drost_workspace_read(engagement_id: str, path: str) -> dict[str, Any]:
-    return read_workspace_file(engagement_id, path)
+async def drost_workspace_read(engagement_id: str, path: str) -> dict[str, Any]:
+    return await asyncio.to_thread(read_workspace_file, engagement_id, path)
 
 
 @mcp.tool(name="drost_workspace_write", description="Write or append a UTF-8 text file inside the Drost engagement workspace.", structured_output=True)
-def drost_workspace_write(engagement_id: str, path: str, content: str, append: bool = False) -> dict[str, Any]:
-    return write_workspace_file(engagement_id, path, content, append)
+async def drost_workspace_write(engagement_id: str, path: str, content: str, append: bool = False) -> dict[str, Any]:
+    return await asyncio.to_thread(write_workspace_file, engagement_id, path, content, append)
 
 
 @mcp.tool(name="drost_workspace_delete", description="Delete one file or empty directory inside the Drost engagement workspace.", structured_output=True)
-def drost_workspace_delete(engagement_id: str, path: str) -> dict[str, Any]:
-    return delete_workspace_path(engagement_id, path)
+async def drost_workspace_delete(engagement_id: str, path: str) -> dict[str, Any]:
+    return await asyncio.to_thread(delete_workspace_path, engagement_id, path)
 
 
 @mcp.tool(name="drost_finding_report", description="Write a structured Markdown security finding inside the engagement workspace.", structured_output=True)
-def drost_finding_report(engagement_id: str, path: str, title: str, target: str, severity: str, summary: str, evidence: list[str], remediation: str = "") -> dict[str, Any]:
-    return write_finding_report(engagement_id, path, title, target, severity, summary, evidence, remediation)
+async def drost_finding_report(engagement_id: str, path: str, title: str, target: str, severity: str, summary: str, evidence: list[str], remediation: str = "") -> dict[str, Any]:
+    return await asyncio.to_thread(write_finding_report, engagement_id, path, title, target, severity, summary, evidence, remediation)
 
 
 @mcp.tool(name="drost_http_request", description="Send a complete HTTP request and return the full response without truncation.", structured_output=True)
-def drost_http_request(method: str, url: str, headers: dict[str, str] | None = None, body: str | None = None, follow_redirects: bool = True) -> dict[str, Any]:
-    return http_request(method, url, headers, body, follow_redirects)
+async def drost_http_request(method: str, url: str, headers: dict[str, str] | None = None, body: str | None = None, follow_redirects: bool = True) -> dict[str, Any]:
+    return await asyncio.to_thread(http_request, method, url, headers, body, follow_redirects)
 
 
 @mcp.tool(name="drost_graphql_request", description="Send a GraphQL query and return the full server response.", structured_output=True)
-def drost_graphql_request(url: str, query: str, variables: dict[str, Any] | None = None, headers: dict[str, str] | None = None) -> dict[str, Any]:
-    return graphql_request(url, query, variables, headers)
+async def drost_graphql_request(url: str, query: str, variables: dict[str, Any] | None = None, headers: dict[str, str] | None = None) -> dict[str, Any]:
+    return await asyncio.to_thread(graphql_request, url, query, variables, headers)
 
 
 @mcp.tool(name="drost_jwt_decode", description="Decode JWT header and payload fields without claiming signature verification.", structured_output=True)
@@ -189,33 +190,33 @@ def drost_jwt_decode(token: str) -> dict[str, Any]:
 
 
 @mcp.tool(name="drost_openapi_inspect", description="Inspect a JSON OpenAPI document from a URL or workspace file.", structured_output=True)
-def drost_openapi_inspect(engagement_id: str, source: str) -> dict[str, Any]:
-    return inspect_openapi(engagement_id, source)
+async def drost_openapi_inspect(engagement_id: str, source: str) -> dict[str, Any]:
+    return await asyncio.to_thread(inspect_openapi, engagement_id, source)
 
 
 @mcp.tool(name="drost_hibp_password_check", description="Check a password against HIBP using its k-anonymity range API.", structured_output=True)
-def drost_hibp_password_check(password: str) -> dict[str, Any]:
-    return hibp_password_range(password)
+async def drost_hibp_password_check(password: str) -> dict[str, Any]:
+    return await asyncio.to_thread(hibp_password_range, password)
 
 
 @mcp.tool(name="drost_process_snapshot", description="Return the container process table and active network connections.", structured_output=True)
-def drost_process_snapshot(include_connections: bool = True) -> dict[str, Any]:
-    return process_snapshot(include_connections)
+async def drost_process_snapshot(include_connections: bool = True) -> dict[str, Any]:
+    return await asyncio.to_thread(process_snapshot, include_connections)
 
 
 @mcp.tool(name="drost_angr_analyze", description="Analyze a workspace binary with the angr Python library.", structured_output=True)
-def drost_angr_analyze(engagement_id: str, path: str, auto_load_libs: bool = False) -> dict[str, Any]:
-    return analyze_binary_with_angr(engagement_id, path, auto_load_libs)
+async def drost_angr_analyze(engagement_id: str, path: str, auto_load_libs: bool = False) -> dict[str, Any]:
+    return await asyncio.to_thread(analyze_binary_with_angr, engagement_id, path, auto_load_libs)
 
 
 @mcp.tool(name="drost_cve_lookup", description="Retrieve a CVE record from NVD without inventing intelligence.", structured_output=True)
-def drost_cve_lookup(cve_id: str) -> dict[str, Any]:
-    return lookup_cve(cve_id)
+async def drost_cve_lookup(cve_id: str) -> dict[str, Any]:
+    return await asyncio.to_thread(lookup_cve, cve_id)
 
 
 @mcp.tool(name="drost_file_hashes", description="Calculate complete cryptographic hashes for a workspace file.", structured_output=True)
-def drost_file_hashes(engagement_id: str, path: str, algorithms: list[str] | None = None) -> dict[str, Any]:
-    return hash_workspace_file(engagement_id, path, algorithms)
+async def drost_file_hashes(engagement_id: str, path: str, algorithms: list[str] | None = None) -> dict[str, Any]:
+    return await asyncio.to_thread(hash_workspace_file, engagement_id, path, algorithms)
 
 
 @mcp.tool(name="drost_payload_encode", description="Encode text as base64, base64url, hex, URL, or form data.", structured_output=True)

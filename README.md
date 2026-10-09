@@ -19,8 +19,9 @@
 
 Drost Community Edition is the public release of **Drost-v1**: one Kali-based
 Docker image containing an MCP server, 105 executable-backed security tools,
-23 Drost-native security and workflow tools, and three engagement-management
-tools for agent-driven and operator-driven security work.
+GNU grep for engagement artifact analysis, 23 Drost-native security and workflow
+tools, and three engagement-management tools for agent-driven and
+operator-driven security work.
 
 It runs over stdio, publishes no network service, and works with Tess and other
 MCP clients that can launch a local command. Images can be built for
@@ -52,13 +53,13 @@ the original Drost foundation.
 ## What is included
 
 - **128 offensive-security tools:** 105 executable-backed tools and 23
-  Drost-native security and workflow tools, plus three engagement-management
-  tools for 131 advertised MCP tools in full mode.
+  Drost-native security and workflow tools, plus GNU grep and three
+  engagement-management tools for 132 advertised MCP tools in full mode.
 - **One container:** the MCP server and its security executables share the same
   Kali-based image.
 - **Direct stdio transport:** no HTTP API, listening port, or separate worker
   service.
-- **Full MCP mode by default:** all 131 named tools are advertised directly so
+- **Full MCP mode by default:** all 132 named tools are advertised directly so
   the model can select recognizable tools such as `drost_nmap`,
   `drost_httpx`, and `drost_nuclei`.
 - **Persistent isolated engagements:** the server generates a random engagement
@@ -68,7 +69,8 @@ the original Drost foundation.
   `linux/arm64`.
 - **Client-owned execution limits:** Drost does not impose artificial execution
   timeouts or truncate tool output. The MCP client controls its request
-  deadlines, cancellation, and context handling.
+  deadlines, cancellation, and context handling. Client cancellation terminates
+  the executable process group without blocking other MCP calls.
 - **Explicit process execution:** executable arguments are passed as an array
   with `shell=False`.
 
@@ -87,6 +89,7 @@ The executable-backed catalog includes:
 | Forensics | 11 | Volatility, Foremost, ExifTool, Sleuth Kit |
 | Cloud, containers, and IaC | 8 | Prowler, Trivy, Checkov, kube-bench |
 | Wireless | 5 | Aircrack-ng, Airmon-ng, Airodump-ng, Kismet |
+| Utilities | 1 | GNU grep |
 
 Drost-native tools add catalog discovery, controlled execution, workspace
 operations, HTTP and GraphQL requests, JWT and OpenAPI inspection, CVE lookup,
@@ -206,7 +209,7 @@ Restart Tess after registration. Then ask it to call `drost_catalog`, choose
 an authorized tool, create an engagement with `drost_engagement_create`, and
 use the returned `engagement_id` for the engagement's tool calls.
 
-Full mode is the default. It exposes all 131 MCP tools directly and requires no
+Full mode is the default. It exposes all 132 MCP tools directly and requires no
 mode environment variable.
 
 ## Connect agent runtimes
@@ -342,7 +345,7 @@ docker exec -i -e DROST_MCP_MODE=compact drost-ai drost-mcp
 ```
 
 Compact mode advertises 26 Drost-native and engagement-management tools instead
-of all 131 schemas. The complete executable catalog remains available
+of all 132 schemas. The complete executable catalog remains available
 indirectly through `drost_catalog` and `drost_execute`, but direct names such as
 `drost_nmap` are not advertised to the model.
 

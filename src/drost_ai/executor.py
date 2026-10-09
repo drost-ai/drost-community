@@ -2,9 +2,10 @@
 
 from __future__ import annotations
 
+import asyncio
 import os
+import signal
 import shutil
-import subprocess
 from typing import Any, Sequence
 
 from .engagements import resolve_engagement_path
@@ -30,7 +31,25 @@ def executable_status(executable: str) -> dict[str, Any]:
     }
 
 
-def execute_tool(
+async def _terminate_process_group(process: asyncio.subprocess.Process) -> None:
+    """Terminate a cancelled tool and any descendants it started."""
+    if process.returncode is not None:
+        return
+    try:
+        os.killpg(process.pid, signal.SIGTERM)
+    except ProcessLookupError:
+        return
+    try:
+        await asyncio.wait_for(process.wait(), timeout=2.0)
+    except asyncio.TimeoutError:
+        try:
+            os.killpg(process.pid, signal.SIGKILL)
+        except ProcessLookupError:
+            pass
+        await process.wait()
+
+
+async def execute_tool(
     executable: str,
     arguments: Sequence[str],
     engagement_id: str,
@@ -52,16 +71,14 @@ def execute_tool(
 
     argv = [resolved, *validate_arguments(arguments)]
     try:
-        completed = subprocess.run(
-            argv,
+        process = await asyncio.create_subprocess_exec(
+            *argv,
             cwd=cwd,
             env=os.environ.copy(),
-            input=stdin,
-            capture_output=True,
-            text=True,
-            encoding="utf-8",
-            errors="replace",
-            check=False,
+            stdin=asyncio.subprocess.PIPE,
+            stdout=asyncio.subprocess.PIPE,
+            stderr=asyncio.subprocess.PIPE,
+            start_new_session=True,
         )
     except OSError as exc:
         return {
@@ -74,14 +91,22 @@ def execute_tool(
             "error": str(exc),
         }
 
+    try:
+        stdout, stderr = await process.communicate(
+            None if stdin is None else stdin.encode("utf-8")
+        )
+    except asyncio.CancelledError:
+        await _terminate_process_group(process)
+        raise
+
     return {
-        "success": completed.returncode == 0,
+        "success": process.returncode == 0,
         "engagement_id": engagement_id,
         "executable": executable,
         "available": True,
         "argv": argv,
         "cwd": str(cwd),
-        "returncode": completed.returncode,
-        "stdout": completed.stdout,
-        "stderr": completed.stderr,
+        "returncode": process.returncode,
+        "stdout": stdout.decode("utf-8", errors="replace"),
+        "stderr": stderr.decode("utf-8", errors="replace"),
     }

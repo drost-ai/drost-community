@@ -145,6 +145,9 @@ TOOL_GROUPS: dict[str, tuple[tuple[str, str], ...]] = {
         ("aireplay", "aireplay-ng"),
         ("kismet", "kismet"),
     ),
+    "utilities": (
+        ("grep", "grep"),
+    ),
 }
 
 
