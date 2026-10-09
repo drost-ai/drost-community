@@ -134,7 +134,7 @@ jobs:
           touch "${RUNNER_TEMP}/digests/${DIGEST#sha256:}"
 
       - name: Upload platform digest
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: digest-${{ matrix.artifact }}
           path: ${{ runner.temp }}/digests/*
@@ -150,7 +150,7 @@ jobs:
 
     steps:
       - name: Download platform digests
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           pattern: digest-*
           path: ${{ runner.temp }}/digests
