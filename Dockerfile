@@ -202,7 +202,7 @@ RUN git clone --depth 1 https://github.com/docker/docker-bench-security.git /opt
     && ln -s /opt/docker-bench-security/docker-bench-security.sh /usr/local/bin/docker-bench-security
 
 WORKDIR /opt/drost-ai
-COPY pyproject.toml README.md ./
+COPY pyproject.toml README.md LICENSE ./
 COPY src ./src
 
 RUN python3 -m venv --system-site-packages /opt/drost-ai-venv \
