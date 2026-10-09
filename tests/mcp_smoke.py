@@ -30,6 +30,22 @@ def receive(process: subprocess.Popen[str], request_id: int, timeout: float = 30
     raise RuntimeError(f"no MCP response for request {request_id}")
 
 
+def structured_result(response: dict) -> dict:
+    result = response.get("result", {})
+    structured = result.get("structuredContent")
+    if isinstance(structured, dict):
+        return structured
+    for item in result.get("content", []):
+        if item.get("type") == "text":
+            try:
+                payload = json.loads(item["text"])
+            except (KeyError, json.JSONDecodeError):
+                continue
+            if isinstance(payload, dict):
+                return payload
+    raise RuntimeError(f"MCP response has no structured object: {response}")
+
+
 def main() -> None:
     if len(sys.argv) < 2:
         raise SystemExit("usage: mcp_smoke.py COMMAND [ARG ...]")
@@ -64,21 +80,24 @@ def main() -> None:
         listed = receive(process, 2)
         tools = listed["result"]["tools"]
         names = [tool["name"] for tool in tools]
-        minimum_tools = 20 if compact else 110
+        minimum_tools = 23 if compact else 113
         if len(names) < minimum_tools:
             raise RuntimeError(f"catalog unexpectedly small: {len(names)}")
         if len(names) != len(set(names)):
             raise RuntimeError("duplicate MCP tool names")
         if not all(name.startswith("drost_") for name in names):
             raise RuntimeError("non-Drost tool name found")
+        engagement_tools = {"drost_engagement_create", "drost_engagement_list", "drost_engagement_get"}
+        if not engagement_tools.issubset(names):
+            raise RuntimeError(f"missing engagement tools: {sorted(engagement_tools - set(names))}")
         executable_name = "drost_execute" if compact else "drost_nmap"
         executable_definition = next(tool for tool in tools if tool["name"] == executable_name)
         executable_schema = executable_definition["inputSchema"]
-        expected_properties = {"tool", "arguments", "working_directory", "stdin"} if compact else {"arguments", "working_directory", "stdin"}
+        expected_properties = {"tool", "engagement_id", "arguments", "working_directory", "stdin"} if compact else {"engagement_id", "arguments", "working_directory", "stdin"}
         if set(executable_schema.get("properties", {})) != expected_properties:
             raise RuntimeError(f"unexpected Drost executable schema: {executable_schema}")
-        expected_required = ["tool", "arguments"] if compact else ["arguments"]
-        if executable_schema.get("required") != expected_required:
+        expected_required = {"tool", "engagement_id", "arguments"} if compact else {"engagement_id", "arguments"}
+        if set(executable_schema.get("required", [])) != expected_required:
             raise RuntimeError(f"unexpected required fields: {executable_schema}")
         send(
             process,
@@ -99,18 +118,20 @@ def main() -> None:
                 "id": 4,
                 "method": "tools/call",
                 "params": {
-                    "name": executable_name,
-                    "arguments": (
-                        {"tool": "drost_nmap", "arguments": ["--version"]}
-                        if compact
-                        else {"arguments": ["--version"]}
-                    ),
+                    "name": "drost_engagement_create",
+                    "arguments": {
+                        "name": "Drost MCP smoke test",
+                        "targets": ["127.0.0.1"],
+                        "objective": "Validate engagement isolation",
+                    },
                 },
             },
         )
-        nmap_called = receive(process, 4)
-        if "error" in nmap_called or nmap_called["result"].get("isError", False):
-            raise RuntimeError(nmap_called.get("error") or nmap_called["result"])
+        engagement_called = receive(process, 4)
+        if "error" in engagement_called or engagement_called["result"].get("isError", False):
+            raise RuntimeError(engagement_called.get("error") or engagement_called["result"])
+        engagement = structured_result(engagement_called)
+        engagement_id = engagement["engagement_id"]
         send(
             process,
             {
@@ -118,14 +139,18 @@ def main() -> None:
                 "id": 5,
                 "method": "tools/call",
                 "params": {
-                    "name": "drost_engagement_plan",
-                    "arguments": {"kind": "recon", "target": "127.0.0.1"},
+                    "name": executable_name,
+                    "arguments": (
+                        {"tool": "drost_nmap", "engagement_id": engagement_id, "arguments": ["--version"]}
+                        if compact
+                        else {"engagement_id": engagement_id, "arguments": ["--version"]}
+                    ),
                 },
             },
         )
-        plan_called = receive(process, 5)
-        if "error" in plan_called or plan_called["result"].get("isError", False):
-            raise RuntimeError(plan_called.get("error") or plan_called["result"])
+        nmap_called = receive(process, 5)
+        if "error" in nmap_called or nmap_called["result"].get("isError", False):
+            raise RuntimeError(nmap_called.get("error") or nmap_called["result"])
         send(
             process,
             {
@@ -133,26 +158,88 @@ def main() -> None:
                 "id": 6,
                 "method": "tools/call",
                 "params": {
-                    "name": "drost_workspace_write",
-                    "arguments": {"path": "smoke/mcp.txt", "content": "drost-mcp-smoke\n"},
+                    "name": "drost_engagement_plan",
+                    "arguments": {"kind": "recon", "target": "127.0.0.1"},
                 },
             },
         )
-        write_called = receive(process, 6)
-        if "error" in write_called or write_called["result"].get("isError", False):
-            raise RuntimeError(write_called.get("error") or write_called["result"])
+        plan_called = receive(process, 6)
+        if "error" in plan_called or plan_called["result"].get("isError", False):
+            raise RuntimeError(plan_called.get("error") or plan_called["result"])
         send(
             process,
             {
                 "jsonrpc": "2.0",
                 "id": 7,
                 "method": "tools/call",
-                "params": {"name": "drost_workspace_read", "arguments": {"path": "smoke/mcp.txt"}},
+                "params": {
+                    "name": "drost_workspace_write",
+                    "arguments": {"engagement_id": engagement_id, "path": "smoke/mcp.txt", "content": "first-engagement\n"},
+                },
             },
         )
-        read_called = receive(process, 7)
+        write_called = receive(process, 7)
+        if "error" in write_called or write_called["result"].get("isError", False):
+            raise RuntimeError(write_called.get("error") or write_called["result"])
+        send(
+            process,
+            {
+                "jsonrpc": "2.0",
+                "id": 8,
+                "method": "tools/call",
+                "params": {"name": "drost_workspace_read", "arguments": {"engagement_id": engagement_id, "path": "smoke/mcp.txt"}},
+            },
+        )
+        read_called = receive(process, 8)
         if "error" in read_called or read_called["result"].get("isError", False):
             raise RuntimeError(read_called.get("error") or read_called["result"])
+        if structured_result(read_called)["content"] != "first-engagement\n":
+            raise RuntimeError("first engagement returned unexpected workspace content")
+        send(
+            process,
+            {
+                "jsonrpc": "2.0",
+                "id": 9,
+                "method": "tools/call",
+                "params": {
+                    "name": "drost_engagement_create",
+                    "arguments": {"name": "Second smoke engagement", "targets": ["localhost"]},
+                },
+            },
+        )
+        second_called = receive(process, 9)
+        if "error" in second_called or second_called["result"].get("isError", False):
+            raise RuntimeError(second_called.get("error") or second_called["result"])
+        second_id = structured_result(second_called)["engagement_id"]
+        if second_id == engagement_id:
+            raise RuntimeError("server generated duplicate engagement IDs")
+        send(
+            process,
+            {
+                "jsonrpc": "2.0",
+                "id": 10,
+                "method": "tools/call",
+                "params": {
+                    "name": "drost_workspace_write",
+                    "arguments": {"engagement_id": second_id, "path": "smoke/mcp.txt", "content": "second-engagement\n"},
+                },
+            },
+        )
+        second_write = receive(process, 10)
+        if "error" in second_write or second_write["result"].get("isError", False):
+            raise RuntimeError(second_write.get("error") or second_write["result"])
+        send(
+            process,
+            {
+                "jsonrpc": "2.0",
+                "id": 11,
+                "method": "tools/call",
+                "params": {"name": "drost_workspace_read", "arguments": {"engagement_id": engagement_id, "path": "smoke/mcp.txt"}},
+            },
+        )
+        isolated_read = receive(process, 11)
+        if structured_result(isolated_read)["content"] != "first-engagement\n":
+            raise RuntimeError("engagement workspace isolation failed")
         print(
             json.dumps(
                 {
@@ -165,6 +252,9 @@ def main() -> None:
                     "nmap_call_ok": True,
                     "engagement_plan_ok": True,
                     "workspace_roundtrip_ok": True,
+                    "engagement_isolation_ok": True,
+                    "engagement_id": engagement_id,
+                    "second_engagement_id": second_id,
                 },
                 indent=2,
             )

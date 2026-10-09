@@ -19,7 +19,8 @@
 
 Drost Community Edition is the public release of **Drost-v1**: one Kali-based
 Docker image containing an MCP server, 105 executable-backed security tools,
-and 23 Drost-native tools for agent-driven and operator-driven security work.
+23 Drost-native security and workflow tools, and three engagement-management
+tools for agent-driven and operator-driven security work.
 
 It runs over stdio, publishes no network service, and works with Tess and other
 MCP clients that can launch a local command. Images can be built for
@@ -50,16 +51,19 @@ the original Drost foundation.
 
 ## What is included
 
-- **128 MCP tools:** 105 executable-backed tools and 23 Drost-native tools.
+- **128 offensive-security tools:** 105 executable-backed tools and 23
+  Drost-native security and workflow tools, plus three engagement-management
+  tools for 131 advertised MCP tools in full mode.
 - **One container:** the MCP server and its security executables share the same
   Kali-based image.
 - **Direct stdio transport:** no HTTP API, listening port, or separate worker
   service.
-- **Full MCP mode by default:** all 128 named tools are advertised directly so
+- **Full MCP mode by default:** all 131 named tools are advertised directly so
   the model can select recognizable tools such as `drost_nmap`,
   `drost_httpx`, and `drost_nuclei`.
-- **Persistent workspace:** engagement inputs and outputs live under
-  `/workspace`.
+- **Persistent isolated engagements:** the server generates a random engagement
+  ID and keeps its inputs and outputs under
+  `/workspace/engagements/<engagement_id>`.
 - **Multi-architecture builds:** one Dockerfile for `linux/amd64` and
   `linux/arm64`.
 - **Client-owned execution limits:** Drost does not impose artificial execution
@@ -87,7 +91,8 @@ The executable-backed catalog includes:
 Drost-native tools add catalog discovery, controlled execution, workspace
 operations, HTTP and GraphQL requests, JWT and OpenAPI inspection, CVE lookup,
 file hashing, indicator extraction, engagement planning, tool recommendations,
-attack-chain organization, and scan summaries.
+attack-chain organization, and scan summaries. Three additional management
+tools create, list, and inspect persistent engagement namespaces.
 
 Use `drost_catalog` for the live catalog and input contracts.
 
@@ -104,11 +109,42 @@ docker exec -i drost-ai drost-mcp
     |
     +-- catalog adapter --> executable inside the container
     |
-    +-- /workspace       --> persistent engagement artifacts
+    +-- /workspace/engagements/<engagement_id>
+                         --> persistent isolated engagement artifacts
 ```
 
 The server publishes no ports. The persistent container is simply the
 execution environment in which the client starts `drost-mcp`.
+
+## Engagement namespaces
+
+Drost deliberately has no server-side "current engagement." The MCP client
+owns that selection, while the server owns identifier generation and storage.
+This keeps OpenCode, Pi, Tess, and other clients from changing shared global
+state when they use the same container.
+
+At the beginning of new work, call `drost_engagement_create` with a descriptive
+name and the authorized targets. Drost returns a collision-resistant identifier
+such as:
+
+```text
+eng_20261009_9f8d4c1a6b2743f4a2c11bb8d02a91a7
+```
+
+The client must retain that identifier and supply it as `engagement_id` to
+every executable-backed or workspace-backed tool call. To resume work after a
+client restart, call `drost_engagement_list`, select the intended engagement,
+and optionally inspect it with `drost_engagement_get`.
+
+Domain names, targets, and human-readable engagement names are stored as
+metadata in `engagement.json`; they are not used as directory identifiers.
+Existing files stored directly under `/workspace` by earlier releases remain
+untouched and are not exposed through a new engagement namespace.
+
+Engagement namespaces prevent accidental artifact mixing; they are not an
+authorization boundary against a deliberately hostile executable. Use a
+separate container and volume when separate operators or trust domains require
+hard isolation.
 
 ## Install
 
@@ -167,9 +203,10 @@ tess mcp add --scope local drost-ai docker -- \
 ```
 
 Restart Tess after registration. Then ask it to call `drost_catalog`, choose
-an authorized tool, and execute it.
+an authorized tool, create an engagement with `drost_engagement_create`, and
+use the returned `engagement_id` for the engagement's tool calls.
 
-Full mode is the default. It exposes all 128 tools directly and requires no
+Full mode is the default. It exposes all 131 MCP tools directly and requires no
 mode environment variable.
 
 ## Connect agent runtimes
@@ -304,9 +341,9 @@ enforces a strict tool-schema limit:
 docker exec -i -e DROST_MCP_MODE=compact drost-ai drost-mcp
 ```
 
-Compact mode advertises 23 Drost-native tools instead of all 128 schemas. The
-complete executable catalog remains available indirectly through
-`drost_catalog` and `drost_execute`, but direct names such as
+Compact mode advertises 26 Drost-native and engagement-management tools instead
+of all 131 schemas. The complete executable catalog remains available
+indirectly through `drost_catalog` and `drost_execute`, but direct names such as
 `drost_nmap` are not advertised to the model.
 
 ## Build both architectures

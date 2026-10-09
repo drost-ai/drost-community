@@ -5,7 +5,7 @@ import tempfile
 import unittest
 from unittest.mock import patch
 
-import drost_ai.executor as executor
+import drost_ai.engagements as engagements
 import drost_ai.workspace as workspace
 from drost_ai.native_tools import decode_jwt, encode_payload, extract_indicators, technology_hints
 from drost_ai.workflows import attack_chain, engagement_plan, recommend_tools, scan_summary
@@ -44,8 +44,10 @@ class NativeToolTests(unittest.TestCase):
     def test_finding_report_stays_in_workspace(self):
         with tempfile.TemporaryDirectory() as raw:
             root = Path(raw).resolve()
-            with patch.object(executor, "WORKSPACE", root), patch.object(workspace, "WORKSPACE", root):
+            with patch.object(engagements, "WORKSPACE", root):
+                engagement = engagements.create_engagement("Test", ["example.test"])
                 result = workspace.write_finding_report(
+                    engagement["engagement_id"],
                     "findings/test.md",
                     "Test finding",
                     "example.test",
@@ -55,7 +57,8 @@ class NativeToolTests(unittest.TestCase):
                     "Fix it",
                 )
             self.assertEqual(result["path"], "findings/test.md")
-            self.assertIn("Test finding", (root / "findings/test.md").read_text())
+            report = Path(engagement["workspace"]) / "findings/test.md"
+            self.assertIn("Test finding", report.read_text())
 
 
 if __name__ == "__main__":

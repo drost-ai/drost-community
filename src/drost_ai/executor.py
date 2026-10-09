@@ -3,23 +3,11 @@
 from __future__ import annotations
 
 import os
-from pathlib import Path
 import shutil
 import subprocess
 from typing import Any, Sequence
 
-
-WORKSPACE = Path(os.environ.get("DROST_WORKSPACE", "/workspace")).resolve()
-
-
-def resolve_workspace_path(value: str = ".", *, must_exist: bool = True) -> Path:
-    raw = Path(value)
-    candidate = raw.resolve() if raw.is_absolute() else (WORKSPACE / raw).resolve()
-    if candidate != WORKSPACE and WORKSPACE not in candidate.parents:
-        raise ValueError(f"path must remain inside {WORKSPACE}")
-    if must_exist and not candidate.exists():
-        raise ValueError(f"workspace path does not exist: {candidate}")
-    return candidate
+from .engagements import resolve_engagement_path
 
 
 def validate_arguments(arguments: Sequence[str]) -> list[str]:
@@ -45,21 +33,24 @@ def executable_status(executable: str) -> dict[str, Any]:
 def execute_tool(
     executable: str,
     arguments: Sequence[str],
+    engagement_id: str,
     working_directory: str = ".",
     stdin: str | None = None,
 ) -> dict[str, Any]:
     """Execute one binary without a shell, server deadline, or output truncation."""
+    cwd = resolve_engagement_path(engagement_id, working_directory)
     resolved = shutil.which(executable)
     if resolved is None:
         return {
             "success": False,
+            "engagement_id": engagement_id,
             "executable": executable,
             "available": False,
+            "cwd": str(cwd),
             "error": f"executable is not installed: {executable}",
         }
 
     argv = [resolved, *validate_arguments(arguments)]
-    cwd = resolve_workspace_path(working_directory)
     try:
         completed = subprocess.run(
             argv,
@@ -75,6 +66,7 @@ def execute_tool(
     except OSError as exc:
         return {
             "success": False,
+            "engagement_id": engagement_id,
             "executable": executable,
             "available": True,
             "argv": argv,
@@ -84,6 +76,7 @@ def execute_tool(
 
     return {
         "success": completed.returncode == 0,
+        "engagement_id": engagement_id,
         "executable": executable,
         "available": True,
         "argv": argv,

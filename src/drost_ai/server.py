@@ -12,7 +12,8 @@ from mcp.server.fastmcp import FastMCP
 
 from . import __version__
 from .catalog import CATALOG, ToolSpec, category_counts
-from .executor import WORKSPACE, execute_tool
+from .engagements import WORKSPACE, create_engagement, get_engagement, list_engagements
+from .executor import execute_tool
 from .native_tools import analyze_binary_with_angr, decode_jwt, encode_payload, extract_indicators, graphql_request, hash_workspace_file, hibp_password_range, http_request, inspect_openapi, lookup_cve, process_snapshot, technology_hints
 from .workspace import delete_workspace_path, list_workspace, read_workspace_file, write_finding_report, write_workspace_file
 from .workflows import WORKFLOW_STEPS, attack_chain, engagement_plan, recommend_tools, scan_summary
@@ -23,7 +24,9 @@ mcp = FastMCP(
     instructions=(
         "Drost AI is a container-native offensive security toolkit. Use tools only for "
         "authorized targets. Executable-backed tools accept explicit argv tokens and never "
-        "invoke a shell."
+        "invoke a shell. Before using an executable or workspace-backed tool, create an "
+        "engagement with drost_engagement_create or select an existing ID returned by "
+        "drost_engagement_list. Supply that engagement_id on every relevant tool call."
     ),
 )
 
@@ -47,6 +50,7 @@ REGISTERED_CATALOG = _registered_catalog()
 
 def _external_tool(spec: ToolSpec) -> Callable[..., dict[str, Any]]:
     def run(
+        engagement_id: str,
         arguments: list[str],
         working_directory: str = ".",
         stdin: str | None = None,
@@ -55,6 +59,7 @@ def _external_tool(spec: ToolSpec) -> Callable[..., dict[str, Any]]:
         result = execute_tool(
             spec.executable,
             arguments,
+            engagement_id=engagement_id,
             working_directory=working_directory,
             stdin=stdin,
         )
@@ -69,7 +74,14 @@ def _external_tool(spec: ToolSpec) -> Callable[..., dict[str, Any]]:
 
 
 for _spec in REGISTERED_CATALOG:
-    mcp.tool(name=_spec.name, description=_spec.description, structured_output=True)(
+    mcp.tool(
+        name=_spec.name,
+        description=(
+            f"{_spec.description} Runs from the selected engagement namespace; "
+            "use relative paths for engagement artifacts."
+        ),
+        structured_output=True,
+    )(
         _external_tool(_spec)
     )
 
@@ -97,8 +109,12 @@ def drost_catalog(category: str | None = None, missing_only: bool = False, regis
     return {
         "version": __version__,
         "workspace": str(WORKSPACE),
+        "engagements_root": str(WORKSPACE / "engagements"),
         "external_tool_count": len(CATALOG),
         "registered_external_tool_count": len(REGISTERED_CATALOG),
+        "native_and_workspace_tool_count": 23,
+        "engagement_management_tool_count": 3,
+        "advertised_mcp_tool_count": len(REGISTERED_CATALOG) + 26,
         "mcp_mode": os.environ.get("DROST_MCP_MODE", "full"),
         "workflow_kinds": sorted(WORKFLOW_STEPS),
         "category_counts": category_counts(),
@@ -106,40 +122,55 @@ def drost_catalog(category: str | None = None, missing_only: bool = False, regis
     }
 
 
-@mcp.tool(name="drost_execute", description="Execute any executable-backed Drost catalog entry by its Drost tool name.", structured_output=True)
-def drost_execute(tool: str, arguments: list[str], working_directory: str = ".", stdin: str | None = None) -> dict[str, Any]:
+@mcp.tool(name="drost_execute", description="Execute any executable-backed Drost catalog entry from the selected engagement namespace; use relative paths for engagement artifacts.", structured_output=True)
+def drost_execute(tool: str, engagement_id: str, arguments: list[str], working_directory: str = ".", stdin: str | None = None) -> dict[str, Any]:
     spec = next((entry for entry in CATALOG if entry.name == tool), None)
     if spec is None:
         raise ValueError(f"unknown Drost catalog tool: {tool}")
-    result = execute_tool(spec.executable, arguments, working_directory=working_directory, stdin=stdin)
+    result = execute_tool(spec.executable, arguments, engagement_id=engagement_id, working_directory=working_directory, stdin=stdin)
     result["drost_tool"] = spec.name
     result["category"] = spec.category
     return result
 
 
+@mcp.tool(name="drost_engagement_create", description="Create a persistent engagement namespace and return its server-generated ID.", structured_output=True)
+def drost_engagement_create(name: str, targets: list[str], objective: str = "") -> dict[str, Any]:
+    return create_engagement(name, targets, objective)
+
+
+@mcp.tool(name="drost_engagement_list", description="List persistent Drost engagements available for client-side selection.", structured_output=True)
+def drost_engagement_list() -> dict[str, Any]:
+    return list_engagements()
+
+
+@mcp.tool(name="drost_engagement_get", description="Return metadata for one server-generated Drost engagement ID.", structured_output=True)
+def drost_engagement_get(engagement_id: str) -> dict[str, Any]:
+    return get_engagement(engagement_id)
+
+
 @mcp.tool(name="drost_workspace_list", description="List files within the Drost engagement workspace.", structured_output=True)
-def drost_workspace_list(path: str = ".", recursive: bool = False) -> dict[str, Any]:
-    return list_workspace(path, recursive)
+def drost_workspace_list(engagement_id: str, path: str = ".", recursive: bool = False) -> dict[str, Any]:
+    return list_workspace(engagement_id, path, recursive)
 
 
 @mcp.tool(name="drost_workspace_read", description="Read a UTF-8 text file from the Drost engagement workspace.", structured_output=True)
-def drost_workspace_read(path: str) -> dict[str, Any]:
-    return read_workspace_file(path)
+def drost_workspace_read(engagement_id: str, path: str) -> dict[str, Any]:
+    return read_workspace_file(engagement_id, path)
 
 
 @mcp.tool(name="drost_workspace_write", description="Write or append a UTF-8 text file inside the Drost engagement workspace.", structured_output=True)
-def drost_workspace_write(path: str, content: str, append: bool = False) -> dict[str, Any]:
-    return write_workspace_file(path, content, append)
+def drost_workspace_write(engagement_id: str, path: str, content: str, append: bool = False) -> dict[str, Any]:
+    return write_workspace_file(engagement_id, path, content, append)
 
 
 @mcp.tool(name="drost_workspace_delete", description="Delete one file or empty directory inside the Drost engagement workspace.", structured_output=True)
-def drost_workspace_delete(path: str) -> dict[str, Any]:
-    return delete_workspace_path(path)
+def drost_workspace_delete(engagement_id: str, path: str) -> dict[str, Any]:
+    return delete_workspace_path(engagement_id, path)
 
 
 @mcp.tool(name="drost_finding_report", description="Write a structured Markdown security finding inside the engagement workspace.", structured_output=True)
-def drost_finding_report(path: str, title: str, target: str, severity: str, summary: str, evidence: list[str], remediation: str = "") -> dict[str, Any]:
-    return write_finding_report(path, title, target, severity, summary, evidence, remediation)
+def drost_finding_report(engagement_id: str, path: str, title: str, target: str, severity: str, summary: str, evidence: list[str], remediation: str = "") -> dict[str, Any]:
+    return write_finding_report(engagement_id, path, title, target, severity, summary, evidence, remediation)
 
 
 @mcp.tool(name="drost_http_request", description="Send a complete HTTP request and return the full response without truncation.", structured_output=True)
@@ -158,8 +189,8 @@ def drost_jwt_decode(token: str) -> dict[str, Any]:
 
 
 @mcp.tool(name="drost_openapi_inspect", description="Inspect a JSON OpenAPI document from a URL or workspace file.", structured_output=True)
-def drost_openapi_inspect(source: str) -> dict[str, Any]:
-    return inspect_openapi(source)
+def drost_openapi_inspect(engagement_id: str, source: str) -> dict[str, Any]:
+    return inspect_openapi(engagement_id, source)
 
 
 @mcp.tool(name="drost_hibp_password_check", description="Check a password against HIBP using its k-anonymity range API.", structured_output=True)
@@ -173,8 +204,8 @@ def drost_process_snapshot(include_connections: bool = True) -> dict[str, Any]:
 
 
 @mcp.tool(name="drost_angr_analyze", description="Analyze a workspace binary with the angr Python library.", structured_output=True)
-def drost_angr_analyze(path: str, auto_load_libs: bool = False) -> dict[str, Any]:
-    return analyze_binary_with_angr(path, auto_load_libs)
+def drost_angr_analyze(engagement_id: str, path: str, auto_load_libs: bool = False) -> dict[str, Any]:
+    return analyze_binary_with_angr(engagement_id, path, auto_load_libs)
 
 
 @mcp.tool(name="drost_cve_lookup", description="Retrieve a CVE record from NVD without inventing intelligence.", structured_output=True)
@@ -183,8 +214,8 @@ def drost_cve_lookup(cve_id: str) -> dict[str, Any]:
 
 
 @mcp.tool(name="drost_file_hashes", description="Calculate complete cryptographic hashes for a workspace file.", structured_output=True)
-def drost_file_hashes(path: str, algorithms: list[str] | None = None) -> dict[str, Any]:
-    return hash_workspace_file(path, algorithms)
+def drost_file_hashes(engagement_id: str, path: str, algorithms: list[str] | None = None) -> dict[str, Any]:
+    return hash_workspace_file(engagement_id, path, algorithms)
 
 
 @mcp.tool(name="drost_payload_encode", description="Encode text as base64, base64url, hex, URL, or form data.", structured_output=True)
@@ -229,11 +260,14 @@ def self_test() -> dict[str, Any]:
         "version": __version__,
         "external_tools": len(CATALOG),
         "native_and_workspace_tools": 23,
+        "engagement_management_tools": 3,
+        "total_mcp_tools": len(REGISTERED_CATALOG) + 26,
         "registered_external_tools": len(REGISTERED_CATALOG),
         "mcp_mode": os.environ.get("DROST_MCP_MODE", "full"),
         "available_external_tools": len(CATALOG) - len(missing),
         "missing_external_tools": missing,
         "workspace": str(WORKSPACE),
+        "engagements_root": str(WORKSPACE / "engagements"),
     }
 
 

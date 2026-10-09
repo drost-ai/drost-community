@@ -10,7 +10,7 @@ import re
 from typing import Any
 from urllib.parse import quote, quote_plus
 
-from .executor import resolve_workspace_path
+from .engagements import resolve_engagement_path
 
 
 def process_snapshot(include_connections: bool = True) -> dict[str, Any]:
@@ -39,14 +39,15 @@ def process_snapshot(include_connections: bool = True) -> dict[str, Any]:
     return {"processes": processes, "connections": connections}
 
 
-def analyze_binary_with_angr(path: str, auto_load_libs: bool = False) -> dict[str, Any]:
+def analyze_binary_with_angr(engagement_id: str, path: str, auto_load_libs: bool = False) -> dict[str, Any]:
     import angr
 
-    target = resolve_workspace_path(path)
+    target = resolve_engagement_path(engagement_id, path)
     project = angr.Project(str(target), auto_load_libs=auto_load_libs)
     main = project.loader.main_object
     return {
         "path": str(target),
+        "engagement_id": engagement_id,
         "architecture": project.arch.name,
         "bits": project.arch.bits,
         "entry": project.entry,
@@ -127,7 +128,7 @@ def decode_jwt(token: str) -> dict[str, Any]:
     }
 
 
-def inspect_openapi(source: str) -> dict[str, Any]:
+def inspect_openapi(engagement_id: str, source: str) -> dict[str, Any]:
     if source.startswith(("http://", "https://")):
         import requests
 
@@ -136,7 +137,7 @@ def inspect_openapi(source: str) -> dict[str, Any]:
         document = response.json()
         origin = response.url
     else:
-        path = resolve_workspace_path(source)
+        path = resolve_engagement_path(engagement_id, source)
         document = json.loads(Path(path).read_text(encoding="utf-8"))
         origin = str(path)
     paths = document.get("paths", {}) if isinstance(document, dict) else {}
@@ -155,6 +156,7 @@ def inspect_openapi(source: str) -> dict[str, Any]:
                 )
     return {
         "source": origin,
+        "engagement_id": engagement_id,
         "title": document.get("info", {}).get("title") if isinstance(document, dict) else None,
         "version": document.get("info", {}).get("version") if isinstance(document, dict) else None,
         "operation_count": len(operations),
@@ -201,8 +203,8 @@ def lookup_cve(cve_id: str) -> dict[str, Any]:
     return {"source": "NVD", "cve_id": normalized, "response": response.json()}
 
 
-def hash_workspace_file(path: str, algorithms: list[str] | None = None) -> dict[str, Any]:
-    target = resolve_workspace_path(path)
+def hash_workspace_file(engagement_id: str, path: str, algorithms: list[str] | None = None) -> dict[str, Any]:
+    target = resolve_engagement_path(engagement_id, path)
     requested = algorithms or ["md5", "sha1", "sha256", "sha512"]
     hashers = {}
     for algorithm in requested:
@@ -216,6 +218,7 @@ def hash_workspace_file(path: str, algorithms: list[str] | None = None) -> dict[
                 hasher.update(chunk)
     return {
         "path": str(target),
+        "engagement_id": engagement_id,
         "size": Path(target).stat().st_size,
         "hashes": {name: hasher.hexdigest() for name, hasher in hashers.items()},
     }
