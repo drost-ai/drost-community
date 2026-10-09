@@ -1,0 +1,20 @@
+[build-system]
+requires = ["setuptools>=75"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "drost-ai"
+version = "0.1.0"
+description = "Drost's container-native offensive security MCP toolkit"
+readme = "README.md"
+requires-python = ">=3.11"
+dependencies = [
+  "mcp>=1.0",
+  "requests>=2.31",
+]
+
+[project.scripts]
+drost-mcp = "drost_ai.server:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]

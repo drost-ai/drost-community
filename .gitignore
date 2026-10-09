@@ -1,0 +1,9 @@
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.venv/
+.tess/local/
+dist/
+build/
+*.egg-info/
+*.oci.tar
