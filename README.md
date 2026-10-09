@@ -55,8 +55,9 @@ the original Drost foundation.
   Kali-based image.
 - **Direct stdio transport:** no HTTP API, listening port, or separate worker
   service.
-- **Compact and full MCP modes:** attach a small native tool surface or expose
-  every executable as an individual MCP tool.
+- **Full MCP mode by default:** all 128 named tools are advertised directly so
+  the model can select recognizable tools such as `drost_nmap`,
+  `drost_httpx`, and `drost_nuclei`.
 - **Persistent workspace:** engagement inputs and outputs live under
   `/workspace`.
 - **Multi-architecture builds:** one Dockerfile for `linux/amd64` and
@@ -142,15 +143,14 @@ registration:
 
 ```sh
 tess mcp add --scope local drost-ai docker -- \
-  exec -i -e DROST_MCP_MODE=compact drost-ai drost-mcp
+  exec -i drost-ai drost-mcp
 ```
 
 Restart Tess after registration. Then ask it to call `drost_catalog`, choose
 an authorized tool, and execute it.
 
-Compact mode exposes the Drost-native workflow tools and keeps the complete
-executable catalog available through `drost_catalog` and `drost_execute`.
-Remove `-e DROST_MCP_MODE=compact` to expose all 128 tools directly.
+Full mode is the default. It exposes all 128 tools directly and requires no
+mode environment variable.
 
 ## Connect agent runtimes
 
@@ -158,7 +158,7 @@ Drost works with agent runtimes that support local stdio MCP servers. Start the
 persistent `drost-ai` container first, then configure the runtime to launch:
 
 ```sh
-docker exec -i drost-ai env DROST_MCP_MODE=compact drost-mcp
+docker exec -i drost-ai drost-mcp
 ```
 
 Current native-MCP options include:
@@ -189,8 +189,6 @@ Add Drost to `opencode.json`:
         "exec",
         "-i",
         "drost-ai",
-        "env",
-        "DROST_MCP_MODE=compact",
         "drost-mcp"
       ],
       "enabled": true
@@ -207,7 +205,7 @@ Current Pi releases include native MCP support. Add Drost to the current
 project and verify the connection:
 
 ```sh
-pi mcp add -l drost -- docker exec -i drost-ai env DROST_MCP_MODE=compact drost-mcp
+pi mcp add -l drost -- docker exec -i drost-ai drost-mcp
 pi mcp list
 ```
 
@@ -219,15 +217,15 @@ Each CLI can register the same local stdio command:
 
 ```sh
 # Codex
-codex mcp add drost -- docker exec -i drost-ai env DROST_MCP_MODE=compact drost-mcp
+codex mcp add drost -- docker exec -i drost-ai drost-mcp
 codex mcp list
 
 # Claude Code
-claude mcp add --scope project drost -- docker exec -i drost-ai env DROST_MCP_MODE=compact drost-mcp
+claude mcp add --scope project drost -- docker exec -i drost-ai drost-mcp
 claude mcp list
 
 # Gemini CLI
-gemini mcp add --scope project drost docker exec -i drost-ai env DROST_MCP_MODE=compact drost-mcp
+gemini mcp add --scope project drost docker exec -i drost-ai drost-mcp
 gemini mcp list
 ```
 
@@ -250,8 +248,6 @@ portable MCP clients:
         "exec",
         "-i",
         "drost-ai",
-        "env",
-        "DROST_MCP_MODE=compact",
         "drost-mcp"
       ]
     }
@@ -259,9 +255,21 @@ portable MCP clients:
 }
 ```
 
-Restart or reload the client after changing its configuration. Remove
-`env DROST_MCP_MODE=compact` from any command to expose all 128 tools
-directly instead of using the compact native workflow surface.
+Restart or reload the client after changing its configuration.
+
+### Compatibility fallback: compact mode
+
+Use compact mode only when an MCP client cannot initialize the full catalog or
+enforces a strict tool-schema limit:
+
+```sh
+docker exec -i -e DROST_MCP_MODE=compact drost-ai drost-mcp
+```
+
+Compact mode advertises 23 Drost-native tools instead of all 128 schemas. The
+complete executable catalog remains available indirectly through
+`drost_catalog` and `drost_execute`, but direct names such as
+`drost_nmap` are not advertised to the model.
 
 ## Build both architectures
 
