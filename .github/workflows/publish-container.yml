@@ -78,6 +78,22 @@ jobs:
       - name: Check out repository
         uses: actions/checkout@v5
 
+      - name: Reclaim runner disk space
+        shell: bash
+        run: |
+          echo "Disk space before cleanup:"
+          df -h /
+
+          sudo rm -rf -- \
+            /usr/local/lib/android \
+            /usr/share/dotnet \
+            /opt/ghc \
+            /usr/local/.ghcup \
+            /opt/hostedtoolcache/CodeQL
+
+          echo "Disk space after cleanup:"
+          df -h /
+
       - name: Set up QEMU
         uses: docker/setup-qemu-action@v4
 
