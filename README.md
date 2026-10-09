@@ -1,8 +1,21 @@
-# Drost Community Edition
+<p align="center">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="assets/drost-lockup-on-dark.svg">
+    <source media="(prefers-color-scheme: light)" srcset="assets/drost-lockup-on-light.svg">
+    <img src="assets/drost-lockup-on-light.svg" alt="Drost" width="360">
+  </picture>
+</p>
 
-**The open-source, container-native MCP security toolkit from Drost.**
+<h1 align="center">Drost Community Edition</h1>
 
-[Drost](https://www.drost.ai/) · [Drost Edge](https://edge.drost.ai/) · [Drost Elite](https://www.drost.ai/elite) · [Apache-2.0](LICENSE)
+<p align="center"><strong>The open-source, container-native MCP security toolkit from Drost.</strong></p>
+
+<p align="center">
+  <a href="https://www.drost.ai/">Drost</a> ·
+  <a href="https://edge.drost.ai/">Drost Edge</a> ·
+  <a href="https://www.drost.ai/elite">Drost Elite</a> ·
+  <a href="LICENSE">Apache-2.0</a>
+</p>
 
 Drost Community Edition is the public release of **Drost-v1**: one Kali-based
 Docker image containing an MCP server, 105 executable-backed security tools,
