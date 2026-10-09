@@ -23,7 +23,7 @@ and 23 Drost-native tools for agent-driven and operator-driven security work.
 
 It runs over stdio, publishes no network service, and works with Tess and other
 MCP clients that can launch a local command. Images can be built for
-\`linux/amd64\` and \`linux/arm64\`, including Apple Silicon hosts through
+`linux/amd64` and `linux/arm64`, including Apple Silicon hosts through
 Docker Desktop.
 
 > Use Drost only against systems you own or are explicitly authorized to test.
@@ -58,14 +58,14 @@ the original Drost foundation.
 - **Compact and full MCP modes:** attach a small native tool surface or expose
   every executable as an individual MCP tool.
 - **Persistent workspace:** engagement inputs and outputs live under
-  \`/workspace\`.
-- **Multi-architecture builds:** one Dockerfile for \`linux/amd64\` and
-  \`linux/arm64\`.
+  `/workspace`.
+- **Multi-architecture builds:** one Dockerfile for `linux/amd64` and
+  `linux/arm64`.
 - **Client-owned execution limits:** Drost does not impose artificial execution
   timeouts or truncate tool output. The MCP client controls its request
   deadlines, cancellation, and context handling.
 - **Explicit process execution:** executable arguments are passed as an array
-  with \`shell=False\`.
+  with `shell=False`.
 
 ## Tool coverage
 
@@ -88,11 +88,11 @@ operations, HTTP and GraphQL requests, JWT and OpenAPI inspection, CVE lookup,
 file hashing, indicator extraction, engagement planning, tool recommendations,
 attack-chain organization, and scan summaries.
 
-Use \`drost_catalog\` for the live catalog and input contracts.
+Use `drost_catalog` for the live catalog and input contracts.
 
 ## Architecture
 
-\`\`\`text
+```text
 MCP client
     |
     | stdio
@@ -104,10 +104,10 @@ docker exec -i drost-ai drost-mcp
     +-- catalog adapter --> executable inside the container
     |
     +-- /workspace       --> persistent engagement artifacts
-\`\`\`
+```
 
 The server publishes no ports. The persistent container is simply the
-execution environment in which the client starts \`drost-mcp\`.
+execution environment in which the client starts `drost-mcp`.
 
 ## Quick start
 
@@ -118,20 +118,20 @@ Requirements:
 
 Build and start the persistent container:
 
-\`\`\`sh
+```sh
 docker build -t drost-ai:local .
 docker run -d \
   --name drost-ai \
   --restart unless-stopped \
   -v drost-ai-workspace:/workspace \
   drost-ai:local
-\`\`\`
+```
 
 Verify the MCP installation:
 
-\`\`\`sh
+```sh
 docker exec drost-ai drost-mcp --self-test
-\`\`\`
+```
 
 The container deliberately publishes no host ports.
 
@@ -140,23 +140,108 @@ The container deliberately publishes no host ports.
 Run this from the project in which Tess should store its local MCP
 registration:
 
-\`\`\`sh
+```sh
 tess mcp add --scope local drost-ai docker -- \
   exec -i -e DROST_MCP_MODE=compact drost-ai drost-mcp
-\`\`\`
+```
 
-Restart Tess after registration. Then ask it to call \`drost_catalog\`, choose
+Restart Tess after registration. Then ask it to call `drost_catalog`, choose
 an authorized tool, and execute it.
 
 Compact mode exposes the Drost-native workflow tools and keeps the complete
-executable catalog available through \`drost_catalog\` and \`drost_execute\`.
-Remove \`-e DROST_MCP_MODE=compact\` to expose all 128 tools directly.
+executable catalog available through `drost_catalog` and `drost_execute`.
+Remove `-e DROST_MCP_MODE=compact` to expose all 128 tools directly.
 
-## Connect another MCP client
+## Connect agent runtimes
 
-Clients that accept the common \`mcpServers\` configuration shape can use:
+Drost works with agent runtimes that support local stdio MCP servers. Start the
+persistent `drost-ai` container first, then configure the runtime to launch:
 
-\`\`\`json
+```sh
+docker exec -i drost-ai env DROST_MCP_MODE=compact drost-mcp
+```
+
+Current native-MCP options include:
+
+| Runtime | Setup surface |
+| --- | --- |
+| Tess | `tess mcp add` |
+| [OpenCode](https://opencode.ai/docs/mcp-servers/) | `opencode.json` |
+| [Pi coding agent](https://github.com/earendil-works/pi/blob/main/packages/coding-agent/docs/mcp.md) | `pi mcp add` or `.pi/mcp.json` |
+| [Codex](https://developers.openai.com/codex/extend/mcp) | `codex mcp add` or `config.toml` |
+| [Claude Code](https://docs.anthropic.com/en/docs/claude-code/mcp) | `claude mcp add` or `.mcp.json` |
+| [Gemini CLI](https://google-gemini.github.io/gemini-cli/docs/tools/mcp-server.html) | `gemini mcp add` or `settings.json` |
+| [Cursor](https://docs.cursor.com/context/model-context-protocol) | `.cursor/mcp.json` |
+| [VS Code with GitHub Copilot](https://code.visualstudio.com/docs/agent-customization/mcp-servers) | project `.mcp.json` or user MCP configuration |
+
+### OpenCode
+
+Add Drost to `opencode.json`:
+
+```json
+{
+  "$schema": "https://opencode.ai/config.json",
+  "mcp": {
+    "drost": {
+      "type": "local",
+      "command": [
+        "docker",
+        "exec",
+        "-i",
+        "drost-ai",
+        "env",
+        "DROST_MCP_MODE=compact",
+        "drost-mcp"
+      ],
+      "enabled": true
+    }
+  }
+}
+```
+
+OpenCode starts the stdio process and makes Drost tools available to its agents.
+
+### Pi coding agent
+
+Current Pi releases include native MCP support. Add Drost to the current
+project and verify the connection:
+
+```sh
+pi mcp add -l drost -- docker exec -i drost-ai env DROST_MCP_MODE=compact drost-mcp
+pi mcp list
+```
+
+Use `/mcp` inside Pi to inspect the connection, tools, and exposure mode.
+
+### Codex, Claude Code, and Gemini CLI
+
+Each CLI can register the same local stdio command:
+
+```sh
+# Codex
+codex mcp add drost -- docker exec -i drost-ai env DROST_MCP_MODE=compact drost-mcp
+codex mcp list
+
+# Claude Code
+claude mcp add --scope project drost -- docker exec -i drost-ai env DROST_MCP_MODE=compact drost-mcp
+claude mcp list
+
+# Gemini CLI
+gemini mcp add --scope project drost docker exec -i drost-ai env DROST_MCP_MODE=compact drost-mcp
+gemini mcp list
+```
+
+These clients own their request deadlines, approval behavior, and output-context
+limits. Increase the relevant client-side tool timeout when running a scan that
+is expected to take longer than the client's default.
+
+### Cursor, VS Code, and portable MCP clients
+
+Use this server definition in `.cursor/mcp.json` for Cursor or in the
+project-root `.mcp.json` format supported by VS Code, Claude Code, and other
+portable MCP clients:
+
+```json
 {
   "mcpServers": {
     "drost": {
@@ -164,38 +249,40 @@ Clients that accept the common \`mcpServers\` configuration shape can use:
       "args": [
         "exec",
         "-i",
-        "-e",
-        "DROST_MCP_MODE=compact",
         "drost-ai",
+        "env",
+        "DROST_MCP_MODE=compact",
         "drost-mcp"
       ]
     }
   }
 }
-\`\`\`
+```
 
-The exact configuration file and restart procedure depend on the MCP client.
+Restart or reload the client after changing its configuration. Remove
+`env DROST_MCP_MODE=compact` from any command to expose all 128 tools
+directly instead of using the compact native workflow surface.
 
 ## Build both architectures
 
 Validate one architecture locally:
 
-\`\`\`sh
+```sh
 docker buildx build \
   --platform linux/amd64 \
   --progress=plain \
   -t drost-ai:amd64 \
   --load .
-\`\`\`
+```
 
 Build a multi-architecture manifest after selecting a registry:
 
-\`\`\`sh
+```sh
 docker buildx build \
   --platform linux/amd64,linux/arm64 \
   -t REGISTRY/drost-community:1.0.0 \
   --push .
-\`\`\`
+```
 
 No registry image is published by this repository yet.
 
@@ -203,16 +290,16 @@ No registry image is published by this repository yet.
 
 Run the unit tests from a source checkout:
 
-\`\`\`sh
+```sh
 PYTHONPATH=src python3 -m unittest discover -s tests -p 'test_*.py'
-\`\`\`
+```
 
 The Docker smoke test exercises MCP initialization, tool discovery, a
 representative tool call, and container behavior:
 
-\`\`\`sh
+```sh
 python3 tests/mcp_smoke.py
-\`\`\`
+```
 
 Contributions that improve tool coverage, schemas, portability, documentation,
 or test quality are welcome. Keep tool execution explicit, preserve stdio MCP
