@@ -125,7 +125,8 @@ jobs:
           cache-from: type=gha,scope=${{ matrix.artifact }}
           cache-to: type=gha,mode=max,scope=${{ matrix.artifact }}
           provenance: mode=max
-          sbom: true
+          # The full Kali SPDX document exceeds BuildKit's 80 MiB attestation limit.
+          sbom: false
 
       - name: Export platform digest
         shell: bash
