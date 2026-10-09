@@ -147,6 +147,19 @@ TOOL_GROUPS: dict[str, tuple[tuple[str, str], ...]] = {
     ),
     "utilities": (
         ("grep", "grep"),
+        ("jq", "jq"),
+    ),
+}
+
+
+SPECIAL_DESCRIPTIONS = {
+    "grep": (
+        "Search text files inside the selected engagement with GNU grep. "
+        "Prefer drost_jq for structured JSON and drost_python for custom parsing."
+    ),
+    "jq": (
+        "Parse, query, transform, and validate JSON inside the selected engagement with jq. "
+        "Use this instead of brittle regular expressions for JSON and OpenAPI documents."
     ),
 }
 
@@ -157,6 +170,8 @@ def _tool_name(slug: str) -> str:
 
 
 def _description(slug: str, executable: str, category: str) -> str:
+    if slug in SPECIAL_DESCRIPTIONS:
+        return SPECIAL_DESCRIPTIONS[slug]
     label = slug.replace("_", " ")
     return (
         f"Run {label} from the Drost {category.replace('_', ' ')} toolkit. "

@@ -18,6 +18,7 @@ class CatalogTests(unittest.TestCase):
 
     def test_names_are_drost_owned(self):
         self.assertTrue(all(spec.name.startswith("drost_") for spec in CATALOG))
+        self.assertIn("drost_jq", {spec.name for spec in CATALOG})
 
     def test_reference_functional_inventory_is_accounted_for(self):
         self.assertEqual(uncovered_reference_functions(), [])

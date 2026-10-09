@@ -6,6 +6,7 @@ from unittest.mock import patch
 
 import drost_ai.executor as executor
 import drost_ai.engagements as engagements
+from drost_ai.execution_tools import execute_bash, execute_python
 
 
 class ExecutorTests(unittest.IsolatedAsyncioTestCase):
@@ -44,8 +45,8 @@ class ExecutorTests(unittest.IsolatedAsyncioTestCase):
             with patch.object(engagements, "WORKSPACE", root):
                 engagement = engagements.create_engagement("Test", ["example.test"])
                 result = await executor.execute_tool(
-                    "printf",
-                    ["%s", payload],
+                    "python3",
+                    ["-c", "print('x' * 200000, end='')"],
                     engagement_id=engagement["engagement_id"],
                 )
             self.assertEqual(result["stdout"], payload)
@@ -88,6 +89,39 @@ class ExecutorTests(unittest.IsolatedAsyncioTestCase):
                 task.cancel()
                 with self.assertRaises(asyncio.CancelledError):
                     await asyncio.wait_for(task, timeout=3.0)
+
+    async def test_bash_supports_pipelines_stdin_and_environment(self):
+        with tempfile.TemporaryDirectory() as raw:
+            root = Path(raw).resolve()
+            with patch.object(engagements, "WORKSPACE", root):
+                engagement = engagements.create_engagement("Test", ["example.test"])
+                result = await execute_bash(
+                    engagement["engagement_id"],
+                    "read value; printf '%s:%s' \"$DROST_TEST\" \"$value\" | tr a-z A-Z",
+                    stdin="input\n",
+                    environment={"DROST_TEST": "ready"},
+                )
+                self.assertTrue(result["success"])
+                self.assertEqual(result["stdout"], "READY:INPUT")
+
+    async def test_python_supports_inline_and_workspace_files(self):
+        with tempfile.TemporaryDirectory() as raw:
+            root = Path(raw).resolve()
+            with patch.object(engagements, "WORKSPACE", root):
+                engagement = engagements.create_engagement("Test", ["example.test"])
+                engagement_id = engagement["engagement_id"]
+                inline = await execute_python(
+                    engagement_id,
+                    source="import json,sys; print(json.dumps({'arg': sys.argv[1]}))",
+                    script_arguments=["value"],
+                )
+                self.assertIn('"arg": "value"', inline["stdout"])
+                script = Path(engagement["workspace"]) / "script.py"
+                script.write_text("print('workspace-script')\n", encoding="utf-8")
+                file_result = await execute_python(engagement_id, path="script.py")
+                self.assertEqual(file_result["stdout"], "workspace-script\n")
+                with self.assertRaises(ValueError):
+                    await execute_python(engagement_id)
 
 
 if __name__ == "__main__":

@@ -19,9 +19,9 @@
 
 Drost Community Edition is the public release of **Drost-v1**: one Kali-based
 Docker image containing an MCP server, 105 executable-backed security tools,
-GNU grep for engagement artifact analysis, 23 Drost-native security and workflow
-tools, and three engagement-management tools for agent-driven and
-operator-driven security work.
+GNU grep and jq for engagement artifact analysis, and 52 Drost-native execution,
+engagement, API, HTTP, browser, security, and workflow tools for agent-driven
+and operator-driven security work.
 
 It runs over stdio, publishes no network service, and works with Tess and other
 MCP clients that can launch a local command. Images can be built for
@@ -53,13 +53,14 @@ the original Drost foundation.
 ## What is included
 
 - **128 offensive-security tools:** 105 executable-backed tools and 23
-  Drost-native security and workflow tools, plus GNU grep and three
-  engagement-management tools for 132 advertised MCP tools in full mode.
+  Drost-native security and workflow tools, plus grep, jq, Bash, Python,
+  engagement management, API auditing, an HTTP workbench, and browser automation
+  for 159 advertised MCP tools in full mode.
 - **One container:** the MCP server and its security executables share the same
   Kali-based image.
 - **Direct stdio transport:** no HTTP API, listening port, or separate worker
   service.
-- **Full MCP mode by default:** all 132 named tools are advertised directly so
+- **Full MCP mode by default:** all 159 named tools are advertised directly so
   the model can select recognizable tools such as `drost_nmap`,
   `drost_httpx`, and `drost_nuclei`.
 - **Persistent isolated engagements:** the server generates a random engagement
@@ -71,8 +72,9 @@ the original Drost foundation.
   timeouts or truncate tool output. The MCP client controls its request
   deadlines, cancellation, and context handling. Client cancellation terminates
   the executable process group without blocking other MCP calls.
-- **Explicit process execution:** executable arguments are passed as an array
-  with `shell=False`.
+- **Explicit execution semantics:** catalog executables receive argv arrays with
+  no shell parsing; arbitrary shell behavior is available only when the caller
+  deliberately selects `drost_bash`.
 
 ## Tool coverage
 
@@ -89,15 +91,18 @@ The executable-backed catalog includes:
 | Forensics | 11 | Volatility, Foremost, ExifTool, Sleuth Kit |
 | Cloud, containers, and IaC | 8 | Prowler, Trivy, Checkov, kube-bench |
 | Wireless | 5 | Aircrack-ng, Airmon-ng, Airodump-ng, Kismet |
-| Utilities | 1 | GNU grep |
+| Utilities | 2 | GNU grep, jq |
 
-Drost-native tools add catalog discovery, controlled execution, workspace
-operations, HTTP and GraphQL requests, JWT and OpenAPI inspection, CVE lookup,
-file hashing, indicator extraction, engagement planning, tool recommendations,
-attack-chain organization, and scan summaries. Three additional management
-tools create, list, and inspect persistent engagement namespaces.
+Drost-native tools add Bash and Python execution, filtered catalog discovery,
+workspace operations, evidence-backed OpenAPI, GraphQL, JWT and API fuzz
+auditing, a persistent scoped HTTP repeater/intruder workbench, containerized
+Chromium automation, CVE lookup, file hashing, indicator extraction,
+engagement planning, tool recommendations, attack-chain organization, and scan
+summaries.
 
-Use `drost_catalog` for the live catalog and input contracts.
+Use `drost_catalog(name="drost_python", include_contracts=true)` for one exact
+contract or `drost_catalog(query="json")` for concise discovery. An unfiltered
+call returns counts instead of dumping the complete catalog.
 
 ## Architecture
 
@@ -111,6 +116,12 @@ docker exec -i drost-ai drost-mcp
     +-- Drost-native tool
     |
     +-- catalog adapter --> executable inside the container
+    |
+    +-- Bash / Python / jq
+    |
+    +-- API audit + persisted HTTP workbench
+    |
+    +-- headless Chromium browser context
     |
     +-- /workspace/engagements/<engagement_id>
                          --> persistent isolated engagement artifacts
@@ -148,6 +159,33 @@ Engagement namespaces prevent accidental artifact mixing; they are not an
 authorization boundary against a deliberately hostile executable. Use a
 separate container and volume when separate operators or trust domains require
 hard isolation.
+
+## Agent execution and interactive testing
+
+`drost_bash` deliberately executes arbitrary Bash inside the container. It
+supports pipelines, redirects, stdin and environment overrides while retaining
+asynchronous process groups, client cancellation and complete output.
+`drost_python` runs inline source or engagement-relative scripts in the Drost
+Python environment. Both default to the selected engagement directory, but
+arbitrary code can access the wider container; the container remains the trust
+boundary.
+
+For structured data, prefer `drost_jq`. For API work, use the specialized
+`drost_openapi_audit`, `drost_graphql_audit`, `drost_jwt_audit` and
+`drost_api_fuzz` tools. Audit results are persisted beneath the engagement and
+are explicitly reported as review evidence rather than automatically validated
+vulnerabilities.
+
+The HTTP workbench uses persistent, server-generated `http_*` session IDs. It
+stores scope, headers, cookies and match/replace rules and provides repeater,
+sniper-style intruder and complete history tools. Clients must pass both the
+engagement and HTTP session IDs; there is no global current session.
+
+Browser tools launch headless Chromium inside the container. A live `browser_*`
+session supports navigation, DOM/ARIA snapshots, selector actions, screenshots,
+JavaScript, cookies and storage, network logs and request interception rules.
+Browser sessions are process-scoped and must be closed with
+`drost_browser_close`; screenshots and other artifacts remain in the engagement.
 
 ## Install
 
@@ -209,7 +247,7 @@ Restart Tess after registration. Then ask it to call `drost_catalog`, choose
 an authorized tool, create an engagement with `drost_engagement_create`, and
 use the returned `engagement_id` for the engagement's tool calls.
 
-Full mode is the default. It exposes all 132 MCP tools directly and requires no
+Full mode is the default. It exposes all 159 MCP tools directly and requires no
 mode environment variable.
 
 ## Connect agent runtimes
@@ -344,8 +382,8 @@ enforces a strict tool-schema limit:
 docker exec -i -e DROST_MCP_MODE=compact drost-ai drost-mcp
 ```
 
-Compact mode advertises 26 Drost-native and engagement-management tools instead
-of all 132 schemas. The complete executable catalog remains available
+Compact mode advertises 52 Drost-native tools instead of all 159 schemas. The
+complete executable catalog remains available
 indirectly through `drost_catalog` and `drost_execute`, but direct names such as
 `drost_nmap` are not advertised to the model.
 
@@ -385,7 +423,15 @@ The Docker smoke test exercises MCP initialization, tool discovery, a
 representative tool call, and container behavior:
 
 ```sh
-python3 tests/mcp_smoke.py
+python3 tests/mcp_smoke.py docker exec -i drost-ai drost-mcp
+```
+
+The capability-epic smoke test runs inside the image and exercises Bash,
+Python, jq, API audits, HTTP workbench state and real Chromium automation
+against a local fixture:
+
+```sh
+python3 tests/mcp_epic_smoke.py drost-mcp
 ```
 
 Contributions that improve tool coverage, schemas, portability, documentation,

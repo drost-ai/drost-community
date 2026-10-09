@@ -6,7 +6,7 @@ import asyncio
 import os
 import signal
 import shutil
-from typing import Any, Sequence
+from typing import Any, Mapping, Sequence
 
 from .engagements import resolve_engagement_path
 
@@ -20,6 +20,17 @@ def validate_arguments(arguments: Sequence[str]) -> list[str]:
             raise ValueError("arguments cannot contain NUL bytes")
         validated.append(argument)
     return validated
+
+
+def build_environment(overrides: Mapping[str, str] | None = None) -> dict[str, str]:
+    environment = os.environ.copy()
+    for key, value in (overrides or {}).items():
+        if not isinstance(key, str) or not key or "=" in key or "\x00" in key:
+            raise ValueError("environment names must be non-empty strings without '=' or NUL")
+        if not isinstance(value, str) or "\x00" in value:
+            raise ValueError("environment values must be strings without NUL")
+        environment[key] = value
+    return environment
 
 
 def executable_status(executable: str) -> dict[str, Any]:
@@ -55,6 +66,7 @@ async def execute_tool(
     engagement_id: str,
     working_directory: str = ".",
     stdin: str | None = None,
+    environment: Mapping[str, str] | None = None,
 ) -> dict[str, Any]:
     """Execute one binary without a shell, server deadline, or output truncation."""
     cwd = resolve_engagement_path(engagement_id, working_directory)
@@ -74,7 +86,7 @@ async def execute_tool(
         process = await asyncio.create_subprocess_exec(
             *argv,
             cwd=cwd,
-            env=os.environ.copy(),
+            env=build_environment(environment),
             stdin=asyncio.subprocess.PIPE,
             stdout=asyncio.subprocess.PIPE,
             stderr=asyncio.subprocess.PIPE,

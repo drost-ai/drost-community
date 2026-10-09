@@ -96,6 +96,7 @@ RUN apt-get update \
         httpx-toolkit \
         hydra \
         john \
+        jq \
         katana \
         kismet \
         libcap2-bin \
@@ -111,6 +112,8 @@ RUN apt-get update \
         nikto \
         nmap \
         nuclei \
+        nodejs \
+        node-playwright \
         ophcrack \
         paramspider \
         patator \
@@ -122,6 +125,7 @@ RUN apt-get update \
         python3-pip \
         python3-psutil \
         python3-pwntools \
+        python3-playwright \
         python3-requests \
         python3-selenium \
         python3-setuptools \
@@ -158,6 +162,7 @@ RUN apt-get update \
         xsser \
         xxd \
         zaproxy \
+        chromium \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/* \
     && setcap -r /usr/lib/nmap/nmap
@@ -206,6 +211,7 @@ COPY pyproject.toml README.md LICENSE ./
 COPY src ./src
 
 RUN python3 -m venv --system-site-packages /opt/drost-ai-venv \
+    && /opt/drost-ai-venv/bin/python -m pip install --no-cache-dir --ignore-installed playwright==1.55.0 \
     && /opt/drost-ai-venv/bin/python -m pip install --no-cache-dir --no-deps --no-build-isolation /opt/drost-ai \
     && mkdir -p /workspace
 

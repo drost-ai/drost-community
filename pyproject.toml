@@ -18,6 +18,7 @@ classifiers = [
 ]
 dependencies = [
   "mcp>=1.0",
+  "playwright==1.55.0",
   "requests>=2.31",
 ]
 
