@@ -110,22 +110,32 @@ docker exec -i drost-ai drost-mcp
 The server publishes no ports. The persistent container is simply the
 execution environment in which the client starts `drost-mcp`.
 
-## Quick start
+## Install
 
 Requirements:
 
-- Docker Engine or Docker Desktop
-- An MCP client such as Tess
+- Docker Engine or Docker Desktop on an AMD64 or ARM64 host
+- An MCP client such as Tess, OpenCode, Pi, Codex, Claude Code, or Gemini CLI
 
-Build and start the persistent container:
+Install or upgrade Drost Community Edition with one command:
 
 ```sh
-docker build -t drost-ai:local .
+curl -fsSL https://drost.ai/community/install.sh | bash
+```
+
+The installer pulls the versioned multi-platform image, creates a persistent
+workspace volume, starts the `drost-ai` container, and runs the MCP self-test.
+It never requires `sudo` and will not replace a container it does not own.
+
+To install manually instead:
+
+```sh
+docker pull ghcr.io/drost-ai/drost-community:1.0.0
 docker run -d \
   --name drost-ai \
   --restart unless-stopped \
   -v drost-ai-workspace:/workspace \
-  drost-ai:local
+  ghcr.io/drost-ai/drost-community:1.0.0
 ```
 
 Verify the MCP installation:
@@ -136,12 +146,22 @@ docker exec drost-ai drost-mcp --self-test
 
 The container deliberately publishes no host ports.
 
-## Connect Tess
-
-Run this from the project in which Tess should store its local MCP
-registration:
+To uninstall the installer-managed container while preserving engagement data:
 
 ```sh
+curl -fsSL https://drost.ai/community/install.sh | bash -s -- --uninstall
+```
+
+Add `--purge-workspace` only when you also intend to delete the persistent
+`drost-ai-workspace` volume and every engagement artifact stored in it.
+
+## Connect Tess
+
+Install the container, then run the registration command from the project in
+which Tess should store its local MCP registration:
+
+```sh
+curl -fsSL https://drost.ai/community/install.sh | bash
 tess mcp add --scope local drost-ai docker -- \
   exec -i drost-ai drost-mcp
 ```
@@ -154,8 +174,10 @@ mode environment variable.
 
 ## Connect agent runtimes
 
-Drost works with agent runtimes that support local stdio MCP servers. Start the
-persistent `drost-ai` container first, then configure the runtime to launch:
+Drost works with agent runtimes that support local stdio MCP servers. Every
+setup below begins with the same idempotent installer, which pulls the current
+versioned image and starts the persistent `drost-ai` container. Each runtime
+then launches:
 
 ```sh
 docker exec -i drost-ai drost-mcp
@@ -176,7 +198,13 @@ Current native-MCP options include:
 
 ### OpenCode
 
-Add Drost to `opencode.json`:
+Install Drost first:
+
+```sh
+curl -fsSL https://drost.ai/community/install.sh | bash
+```
+
+Then add Drost to `opencode.json`:
 
 ```json
 {
@@ -201,10 +229,11 @@ OpenCode starts the stdio process and makes Drost tools available to its agents.
 
 ### Pi coding agent
 
-Current Pi releases include native MCP support. Add Drost to the current
-project and verify the connection:
+Current Pi releases include native MCP support. Install Drost, add it to the
+current project, and verify the connection:
 
 ```sh
+curl -fsSL https://drost.ai/community/install.sh | bash
 pi mcp add -l drost -- docker exec -i drost-ai drost-mcp
 pi mcp list
 ```
@@ -213,9 +242,12 @@ Use `/mcp` inside Pi to inspect the connection, tools, and exposure mode.
 
 ### Codex, Claude Code, and Gemini CLI
 
-Each CLI can register the same local stdio command:
+Install Drost once, then register the same local stdio command with any of the
+CLIs:
 
 ```sh
+curl -fsSL https://drost.ai/community/install.sh | bash
+
 # Codex
 codex mcp add drost -- docker exec -i drost-ai drost-mcp
 codex mcp list
@@ -235,7 +267,13 @@ is expected to take longer than the client's default.
 
 ### Cursor, VS Code, and portable MCP clients
 
-Use this server definition in `.cursor/mcp.json` for Cursor or in the
+Install Drost first:
+
+```sh
+curl -fsSL https://drost.ai/community/install.sh | bash
+```
+
+Then use this server definition in `.cursor/mcp.json` for Cursor or in the
 project-root `.mcp.json` format supported by VS Code, Claude Code, and other
 portable MCP clients:
 
@@ -292,7 +330,8 @@ docker buildx build \
   --push .
 ```
 
-No registry image is published by this repository yet.
+The release workflow publishes the same versioned manifest to GitHub Container
+Registry for both supported architectures.
 
 ## Development
 

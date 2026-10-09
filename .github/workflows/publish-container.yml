@@ -27,7 +27,7 @@ env:
 jobs:
   prepare:
     name: Resolve release
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     outputs:
       version: ${{ steps.release.outputs.version }}
       major_minor: ${{ steps.release.outputs.major_minor }}
@@ -64,15 +64,17 @@ jobs:
   build:
     name: Build ${{ matrix.platform }}
     needs: prepare
-    runs-on: ubuntu-latest
+    runs-on: ${{ matrix.runner }}
     strategy:
       fail-fast: false
       matrix:
         include:
           - platform: linux/amd64
             artifact: amd64
+            runner: ubuntu-24.04
           - platform: linux/arm64
             artifact: arm64
+            runner: ubuntu-24.04-arm
 
     steps:
       - name: Check out repository
@@ -93,9 +95,6 @@ jobs:
 
           echo "Disk space after cleanup:"
           df -h /
-
-      - name: Set up QEMU
-        uses: docker/setup-qemu-action@v4
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v4
@@ -122,8 +121,6 @@ jobs:
             org.opencontainers.image.version=${{ needs.prepare.outputs.version }}
             org.opencontainers.image.revision=${{ github.sha }}
             org.opencontainers.image.licenses=Apache-2.0
-          cache-from: type=gha,scope=${{ matrix.artifact }}
-          cache-to: type=gha,mode=max,scope=${{ matrix.artifact }}
           provenance: mode=max
           # The full Kali SPDX document exceeds BuildKit's 80 MiB attestation limit.
           sbom: false
@@ -149,7 +146,7 @@ jobs:
     needs:
       - prepare
       - build
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
 
     steps:
       - name: Download platform digests
