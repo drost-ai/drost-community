@@ -9,6 +9,8 @@ ROOT = Path(__file__).resolve().parents[1]
 DOCKERFILE = (ROOT / "Dockerfile").read_text(encoding="utf-8")
 PUBLISH_WORKFLOW = (ROOT / ".github/workflows/publish-container.yml").read_text(encoding="utf-8")
 README = (ROOT / "README.md").read_text(encoding="utf-8")
+SBOM_SCRIPT = (ROOT / "scripts/generate-sbom.sh").read_text(encoding="utf-8")
+LICENSE_SCRIPT = (ROOT / "scripts/generate-license-bundle.sh").read_text(encoding="utf-8")
 
 
 class DistributionComplianceTests(unittest.TestCase):
@@ -49,6 +51,10 @@ class DistributionComplianceTests(unittest.TestCase):
     def test_readme_advertises_current_full_tool_count(self) -> None:
         self.assertIn("159 offensive-security MCP tools", README)
         self.assertNotIn("128 offensive-security tools", README)
+
+    def test_release_checksums_are_archive_relative(self) -> None:
+        self.assertIn('(cd "$output_directory" && sha256sum', SBOM_SCRIPT)
+        self.assertIn('(cd "$output_directory" && sha256sum', LICENSE_SCRIPT)
 
 
 if __name__ == "__main__":

@@ -43,15 +43,15 @@ docker "${docker_arguments[@]}" -c '
 ' >"$output_directory/third-party-license-texts.tar.gz"
 
 if command -v sha256sum >/dev/null 2>&1; then
-  sha256sum \
-    "$output_directory/debian-source-packages.tsv" \
-    "$output_directory/third-party-license-texts.tar.gz" \
-    >"$output_directory/LICENSE-SHA256SUMS"
+  (cd "$output_directory" && sha256sum \
+    debian-source-packages.tsv \
+    third-party-license-texts.tar.gz \
+    >LICENSE-SHA256SUMS)
 else
-  shasum -a 256 \
-    "$output_directory/debian-source-packages.tsv" \
-    "$output_directory/third-party-license-texts.tar.gz" \
-    >"$output_directory/LICENSE-SHA256SUMS"
+  (cd "$output_directory" && shasum -a 256 \
+    debian-source-packages.tsv \
+    third-party-license-texts.tar.gz \
+    >LICENSE-SHA256SUMS)
 fi
 
 echo "wrote $output_directory/debian-source-packages.tsv"

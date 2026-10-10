@@ -46,10 +46,12 @@ SYFT_RELATIONSHIPS_PACKAGE_FILE_OWNERSHIP=false \
 SYFT_RELATIONSHIPS_PACKAGE_FILE_OWNERSHIP_OVERLAP=false \
   syft "${arguments[@]}"
 
+cyclonedx_name=$(basename "$cyclonedx")
+spdx_name=$(basename "$spdx")
 if command -v sha256sum >/dev/null 2>&1; then
-  sha256sum "$cyclonedx" "$spdx" >"$output_directory/SHA256SUMS-$suffix"
+  (cd "$output_directory" && sha256sum "$cyclonedx_name" "$spdx_name" >"SHA256SUMS-$suffix")
 else
-  shasum -a 256 "$cyclonedx" "$spdx" >"$output_directory/SHA256SUMS-$suffix"
+  (cd "$output_directory" && shasum -a 256 "$cyclonedx_name" "$spdx_name" >"SHA256SUMS-$suffix")
 fi
 
 python3 scripts/check-license-policy.py "$cyclonedx"
