@@ -13,7 +13,7 @@
 <p align="center">
   <a href="https://www.drost.ai/">Drost</a> ·
   <a href="https://edge.drost.ai/">Drost Edge</a> ·
-  <a href="https://www.drost.ai/elite">Drost Elite</a> ·
+  <a href="https://www.drost.ai/elite">Drost Swarm</a> ·
   <a href="LICENSE">Apache-2.0</a>
 </p>
 
@@ -42,7 +42,7 @@ Drost has gone through four major architectural generations:
 3. **Drost-v3 — Drost Platform:** hosted autonomous assessment with a recursive
    self-improvement loop.
 4. **Drost-v4 — Drost Swarm:** coordinated offensive agents combined with human
-   judgment, represented commercially by Drost Elite.
+   judgment in Drost's current fourth-generation system.
 
 Each generation introduced a different operating model and a substantial
 capability jump. Community Edition is not a copy of the closed-source Drost
@@ -52,10 +52,10 @@ the original Drost foundation.
 
 ## What is included
 
-- **128 offensive-security tools:** 105 executable-backed tools and 23
-  Drost-native security and workflow tools, plus grep, jq, Bash, Python,
-  engagement management, API auditing, an HTTP workbench, and browser automation
-  for 159 advertised MCP tools in full mode.
+- **159 offensive-security MCP tools:** 107 executable-backed tools and 52
+  Drost-native execution, engagement, API, HTTP, browser, security, and workflow
+  tools. The catalog includes grep, jq, Bash, Python, browser automation, and
+  persistent engagement workspaces.
 - **One container:** the MCP server and its security executables share the same
   Kali-based image.
 - **Direct stdio transport:** no HTTP API, listening port, or separate worker
@@ -220,6 +220,23 @@ Verify the MCP installation:
 ```sh
 docker exec drost-ai drost-mcp --self-test
 ```
+
+Inspect the immutable image digest and verify its signed provenance and
+CycloneDX SBOM attestations with the GitHub CLI:
+
+```sh
+docker buildx imagetools inspect ghcr.io/drost-ai/drost-community:1.0.0
+gh attestation verify \
+  oci://ghcr.io/drost-ai/drost-community:1.0.0 \
+  --repo drost-ai/drost-community
+gh attestation verify \
+  oci://ghcr.io/drost-ai/drost-community:1.0.0 \
+  --repo drost-ai/drost-community \
+  --predicate-type https://cyclonedx.org/bom
+```
+
+The release also includes downloadable SPDX and CycloneDX SBOMs, a package
+source manifest, and a third-party license-text archive for both platforms.
 
 The container deliberately publishes no host ports.
 
@@ -405,11 +422,42 @@ Build a multi-architecture manifest after selecting a registry:
 docker buildx build \
   --platform linux/amd64,linux/arm64 \
   -t REGISTRY/drost-community:1.0.0 \
+  --provenance=mode=max \
   --push .
 ```
 
 The release workflow publishes the same versioned manifest to GitHub Container
-Registry for both supported architectures.
+Registry for both supported architectures. It generates compact Syft SPDX and
+CycloneDX inventories per platform, signs provenance and CycloneDX SBOM
+attestations with GitHub's Sigstore-backed attestation service, and publishes
+the complete inventories and license bundles as release assets. This external
+SBOM path avoids BuildKit's size limit for a full Kali package inventory.
+
+## Release compliance
+
+The container is a mixed-license software collection. Before publishing an
+image, validate the executable set and generate release artifacts for each
+platform digest:
+
+```sh
+scripts/check-image-compliance.sh drost-ai:local linux/arm64
+scripts/generate-sbom.sh docker:drost-ai:local sbom linux/arm64
+scripts/generate-license-bundle.sh drost-ai:local licenses linux/arm64
+```
+
+Repeat the SBOM and license export for AMD64. A release is blocked when
+`check-license-policy.py` finds Burp Suite, Maltego, WPScan, or the unlicensed
+`waybackurls` project anywhere in the image. The generated package-source
+manifest, SPDX and CycloneDX SBOMs, license archive, checksums, provenance, and
+the [corresponding source offer](SOURCE_OFFER.md) must ship together.
+
+After committing and pushing a clean, tested tree, the release helper dispatches
+the native AMD64 and ARM64 GitHub Actions release, publishes signed provenance
+and SBOM attestations, and pushes the versioned manifest:
+
+```sh
+scripts/publish-image.sh ghcr.io/drost-ai/drost-community 1.0.0
+```
 
 ## Development
 
@@ -454,8 +502,12 @@ You are responsible for:
 
 ## License
 
-Drost Community Edition is licensed under the
-[Apache License 2.0](LICENSE).
+Drost-authored source code in this repository is licensed under the
+[Apache License 2.0](LICENSE). The container also distributes independently
+licensed third-party software; Apache-2.0 does not replace those licenses.
+See the [third-party notices and release requirements](THIRD_PARTY_NOTICES.md)
+and [corresponding source offer](SOURCE_OFFER.md) before redistributing the
+image.
 
 Copyright 2026 Drost.
 

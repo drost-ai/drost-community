@@ -20,6 +20,11 @@ class CatalogTests(unittest.TestCase):
         self.assertTrue(all(spec.name.startswith("drost_") for spec in CATALOG))
         self.assertIn("drost_jq", {spec.name for spec in CATALOG})
 
+    def test_restricted_executables_are_not_shipped(self):
+        executables = {spec.executable for spec in CATALOG}
+        self.assertTrue({"burpsuite", "waybackurls", "wpscan", "maltego"}.isdisjoint(executables))
+        self.assertTrue({"whatweb", "urlfinder", "subzy"}.issubset(executables))
+
     def test_reference_functional_inventory_is_accounted_for(self):
         self.assertEqual(uncovered_reference_functions(), [])
         self.assertEqual(len(reference_coverage()), len(REFERENCE_FUNCTIONS))

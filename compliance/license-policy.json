@@ -1,0 +1,40 @@
+{
+  "schema_version": 1,
+  "blocked_components": [
+    {
+      "name": "burpsuite",
+      "reason": "Current Community Edition terms do not provide a clear public-container redistribution grant."
+    },
+    {
+      "name": "waybackurls",
+      "reason": "No upstream license or affirmative redistribution grant was found."
+    },
+    {
+      "name": "maltego",
+      "reason": "Redistribution rights are unresolved and installed package metadata does not match current product messaging."
+    },
+    {
+      "name": "wpscan",
+      "reason": "Public-source terms impose restrictions that are not appropriate for the Community Edition container distribution."
+    }
+  ],
+  "review_required_components": [],
+  "notice_required_components": [
+    {
+      "name": "nmap",
+      "reason": "Retain NPSL-0.94, corresponding-source information, and the package copyright record."
+    },
+    {
+      "name": "volatility3",
+      "reason": "Retain the complete Volatility Software License 1.0 text."
+    },
+    {
+      "name": "whatweb",
+      "reason": "Retain GPL-2.0 terms and corresponding-source information."
+    },
+    {
+      "name": "subzy",
+      "reason": "Retain GPL terms and corresponding-source information."
+    }
+  ]
+}
