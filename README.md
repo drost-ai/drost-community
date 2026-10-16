@@ -12,6 +12,7 @@
 
 <p align="center">
   <a href="https://www.drost.ai/">Drost</a> ·
+  <a href="https://discord.gg/aGUCMMH4UV">Discord</a> ·
   <a href="https://edge.drost.ai/">Drost Edge</a> ·
   <a href="https://www.drost.ai/elite">Drost Swarm</a> ·
   <a href="LICENSE">Apache-2.0</a>
@@ -30,6 +31,12 @@ Docker Desktop.
 
 > Use Drost only against systems you own or are explicitly authorized to test.
 > The software provides capability, not permission.
+
+## Community
+
+Join the [Drost Discord](https://discord.gg/aGUCMMH4UV) for setup help,
+community support, project showcases, and discussion with other Drost users
+and contributors.
 
 ## Where Drost began
 
