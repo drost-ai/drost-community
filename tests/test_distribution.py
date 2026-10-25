@@ -49,8 +49,23 @@ class DistributionComplianceTests(unittest.TestCase):
         self.assertIn("LicenseRef-Drost-Third-Party", PUBLISH_WORKFLOW)
 
     def test_readme_advertises_current_full_tool_count(self) -> None:
-        self.assertIn("159 offensive-security MCP tools", README)
+        self.assertIn("160 offensive-security MCP tools", README)
+        self.assertIn("108 executable-backed tools", README)
         self.assertNotIn("128 offensive-security tools", README)
+
+    def test_android_toolchain_downloads_are_pinned_and_verified(self) -> None:
+        self.assertIn("apktool_${APKTOOL_VERSION}.jar", DOCKERFILE)
+        self.assertIn("jadx-${JADX_VERSION}.zip", DOCKERFILE)
+        self.assertIn("frida-server-${FRIDA_VERSION}-android-arm64.xz", DOCKERFILE)
+        self.assertIn("frida-server-${FRIDA_VERSION}-android-x86_64.xz", DOCKERFILE)
+        self.assertIn("sha256sum -c -", DOCKERFILE)
+        for package in (
+            "frida==17.24.3",
+            "frida-tools==14.11.0",
+            "objection==1.12.5",
+            "androguard==4.1.4",
+        ):
+            self.assertIn(package, DOCKERFILE)
 
     def test_release_checksums_are_archive_relative(self) -> None:
         self.assertIn('(cd "$output_directory" && sha256sum', SBOM_SCRIPT)

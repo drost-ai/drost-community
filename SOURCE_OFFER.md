@@ -1,9 +1,10 @@
 # Corresponding source offer
 
 Drost Community Edition images contain independently licensed programs,
-including software distributed under the GPL, AGPL, LGPL, CPL, Nmap Public
-Source License, Volatility Software License, and other licenses that require
-source availability or preservation of specific terms.
+including software distributed under the GPL, AGPL, LGPL, CPL, wxWindows
+Library Licence, Nmap Public Source License, Volatility Software License, and
+other licenses that require source availability or preservation of specific
+terms.
 
 For each official Drost Community Edition container image distributed by Drost,
 Drost will provide the complete corresponding source code that it is required
@@ -31,6 +32,13 @@ cost of performing that distribution.
   license texts are copied into `/usr/share/drost/licenses` in the image.
 - Direct source builds and their immutable versions or commits are recorded in
   `THIRD_PARTY_NOTICES.md` and the Dockerfile.
+- Android tooling is pinned in the Dockerfile: Apktool 3.0.3, JADX 1.5.6,
+  Frida 17.24.3 server binaries, frida-tools 14.11.0, objection 1.12.5, and
+  androguard 4.1.4. Their license texts are copied to
+  `/usr/share/drost/licenses/android`; the Frida and objection sources are
+  available from their upstream repositories and the source offer above.
+- Kali package source identifiers for adb, aapt/aapt2, apksigner, zipalign, and
+  the OpenJDK runtime are recorded by `scripts/generate-license-bundle.sh`.
 
 The source manifest, SPDX SBOM, CycloneDX SBOM, license bundle, checksums, and
 image provenance must be published together for each release.

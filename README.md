@@ -19,10 +19,10 @@
 </p>
 
 Drost Community Edition is the public release of **Drost-v1**: one Kali-based
-Docker image containing an MCP server, 105 executable-backed security tools,
-GNU grep and jq for engagement artifact analysis, and 52 Drost-native execution,
-engagement, API, HTTP, browser, security, and workflow tools for agent-driven
-and operator-driven security work.
+Docker image containing an MCP server, 108 executable-backed security tools
+including GNU grep and jq for engagement artifact analysis, and 52 Drost-native
+execution, engagement, API, HTTP, browser, security, and workflow tools for
+agent-driven and operator-driven security work.
 
 It runs over stdio, publishes no network service, and works with Tess and other
 MCP clients that can launch a local command. Images can be built for
@@ -59,15 +59,15 @@ the original Drost foundation.
 
 ## What is included
 
-- **159 offensive-security MCP tools:** 107 executable-backed tools and 52
+- **160 offensive-security MCP tools:** 108 executable-backed tools and 52
   Drost-native execution, engagement, API, HTTP, browser, security, and workflow
-  tools. The catalog includes grep, jq, Bash, Python, browser automation, and
-  persistent engagement workspaces.
+  tools. The catalog includes grep, jq, Bash, Python, browser automation,
+  Android app and device testing, and persistent engagement workspaces.
 - **One container:** the MCP server and its security executables share the same
   Kali-based image.
 - **Direct stdio transport:** no HTTP API, listening port, or separate worker
   service.
-- **Full MCP mode by default:** all 159 named tools are advertised directly so
+- **Full MCP mode by default:** all 160 named tools are advertised directly so
   the model can select recognizable tools such as `drost_nmap`,
   `drost_httpx`, and `drost_nuclei`.
 - **Persistent isolated engagements:** the server generates a random engagement
@@ -98,6 +98,7 @@ The executable-backed catalog includes:
 | Forensics | 11 | Volatility, Foremost, ExifTool, Sleuth Kit |
 | Cloud, containers, and IaC | 8 | Prowler, Trivy, Checkov, kube-bench |
 | Wireless | 5 | Aircrack-ng, Airmon-ng, Airodump-ng, Kismet |
+| Android | 1 | adb, Apktool, JADX, Frida, objection |
 | Utilities | 2 | GNU grep, jq |
 
 Drost-native tools add Bash and Python execution, filtered catalog discovery,
@@ -106,6 +107,15 @@ auditing, a persistent scoped HTTP repeater/intruder workbench, containerized
 Chromium automation, CVE lookup, file hashing, indicator extraction,
 engagement planning, tool recommendations, attack-chain organization, and scan
 summaries.
+
+### Android app and device testing
+
+The `drost_android` tool adds an Android workflow to the same container: adb
+device control, APK pull and static triage, Apktool/JADX decompilation, Frida
+and objection instrumentation, and mitmproxy HTTPS interception. It is exposed
+as the `drost_android` MCP tool and the `drost-android` CLI. See
+[docs/android.md](docs/android.md) for device connection, APK triage, Frida,
+objection, and CA-certificate workflows.
 
 Use `drost_catalog(name="drost_python", include_contracts=true)` for one exact
 contract or `drost_catalog(query="json")` for concise discovery. An unfiltered
@@ -271,7 +281,7 @@ Restart Tess after registration. Then ask it to call `drost_catalog`, choose
 an authorized tool, create an engagement with `drost_engagement_create`, and
 use the returned `engagement_id` for the engagement's tool calls.
 
-Full mode is the default. It exposes all 159 MCP tools directly and requires no
+Full mode is the default. It exposes all 160 MCP tools directly and requires no
 mode environment variable.
 
 ## Connect agent runtimes
@@ -406,7 +416,7 @@ enforces a strict tool-schema limit:
 docker exec -i -e DROST_MCP_MODE=compact drost-ai drost-mcp
 ```
 
-Compact mode advertises 52 Drost-native tools instead of all 159 schemas. The
+Compact mode advertises 52 Drost-native tools instead of all 160 schemas. The
 complete executable catalog remains available
 indirectly through `drost_catalog` and `drost_execute`, but direct names such as
 `drost_nmap` are not advertised to the model.

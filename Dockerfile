@@ -79,8 +79,11 @@ ARG DEBIAN_FRONTEND=noninteractive
 
 RUN apt-get update \
     && apt-get install -y --no-install-recommends \
+        aapt \
+        adb \
         aircrack-ng \
         amass \
+        apksigner \
         arjun \
         arp-scan \
         autopsy \
@@ -92,6 +95,7 @@ RUN apt-get update \
         checksec \
         curl \
         dalfox \
+        default-jre-headless \
         dirb \
         dirsearch \
         dnsenum \
@@ -174,6 +178,7 @@ RUN apt-get update \
         tini \
         trivy \
         tshark \
+        unzip \
         uro \
         wafw00f \
         whatweb \
@@ -182,11 +187,51 @@ RUN apt-get update \
         wordlists \
         xsser \
         xxd \
+        xz-utils \
         zaproxy \
+        zipalign \
         chromium \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/* \
     && setcap -r /usr/lib/nmap/nmap
+
+# Android debugging toolchain. Pinned upstream builds are used because the
+# Debian apktool package hangs on Android 15 APKs and its JADX package is older
+# than the APK format support needed here.
+ARG APKTOOL_VERSION=3.0.3
+ARG APKTOOL_SHA256=dbf930b076c6b9be08d57c449cacefc3bdd6b71ebd59b3066fc0e1f5b14f9423
+ARG JADX_VERSION=1.5.6
+ARG JADX_SHA256=545ea2be9c242511bc145755cf4bda2485ade42966e096f8b4d3da2a230e8974
+ARG FRIDA_VERSION=17.24.3
+ARG FRIDA_SERVER_ARM64_SHA256=a56beefc862e5cc6d02ba9a6203cc98057839c2097a62f8eaba867eb537b6d12
+ARG FRIDA_SERVER_X86_64_SHA256=44aead87103ab9738771e5eff659640fb6bf566fe83b8629444c1be99f87ce68
+
+RUN mkdir -p /opt/drost-android/apktool /opt/drost-android/jadx /opt/drost-android/frida \
+        /usr/share/drost/licenses/android/apktool \
+        /usr/share/drost/licenses/android/jadx \
+        /usr/share/drost/licenses/android/frida \
+    && curl -fsSL -o /tmp/apktool.jar "https://github.com/iBotPeaches/Apktool/releases/download/v${APKTOOL_VERSION}/apktool_${APKTOOL_VERSION}.jar" \
+    && echo "${APKTOOL_SHA256}  /tmp/apktool.jar" | sha256sum -c - \
+    && mv /tmp/apktool.jar /opt/drost-android/apktool/apktool.jar \
+    && curl -fsSL -o /tmp/jadx.zip "https://github.com/skylot/jadx/releases/download/v${JADX_VERSION}/jadx-${JADX_VERSION}.zip" \
+    && echo "${JADX_SHA256}  /tmp/jadx.zip" | sha256sum -c - \
+    && unzip -q /tmp/jadx.zip -d /opt/drost-android/jadx \
+    && chmod 0755 /opt/drost-android/jadx/bin/jadx \
+    && rm -f /tmp/jadx.zip \
+    && curl -fsSL -o /tmp/frida-server-arm64.xz "https://github.com/frida/frida/releases/download/${FRIDA_VERSION}/frida-server-${FRIDA_VERSION}-android-arm64.xz" \
+    && echo "${FRIDA_SERVER_ARM64_SHA256}  /tmp/frida-server-arm64.xz" | sha256sum -c - \
+    && xz -dc /tmp/frida-server-arm64.xz > /opt/drost-android/frida/frida-server-arm64-v8a \
+    && curl -fsSL -o /tmp/frida-server-x86_64.xz "https://github.com/frida/frida/releases/download/${FRIDA_VERSION}/frida-server-${FRIDA_VERSION}-android-x86_64.xz" \
+    && echo "${FRIDA_SERVER_X86_64_SHA256}  /tmp/frida-server-x86_64.xz" | sha256sum -c - \
+    && xz -dc /tmp/frida-server-x86_64.xz > /opt/drost-android/frida/frida-server-x86_64 \
+    && rm -f /tmp/frida-server-*.xz \
+    && chmod 0755 /opt/drost-android/frida/frida-server-* \
+    && printf '#!/bin/sh\nexec java -Xmx2g -jar /opt/drost-android/apktool/apktool.jar "$@"\n' > /usr/local/bin/apktool \
+    && chmod 0755 /usr/local/bin/apktool \
+    && ln -sf /opt/drost-android/jadx/bin/jadx /usr/local/bin/jadx \
+    && unzip -p /opt/drost-android/apktool/apktool.jar LICENSE > /usr/share/drost/licenses/android/apktool/LICENSE \
+    && cp /opt/drost-android/jadx/LICENSE /usr/share/drost/licenses/android/jadx/LICENSE \
+    && curl -fsSL -o /usr/share/drost/licenses/android/frida/COPYING "https://raw.githubusercontent.com/frida/frida/${FRIDA_VERSION}/COPYING"
 
 RUN python3 -m venv --system-site-packages /opt/drost-analysis \
     && /opt/drost-analysis/bin/python -m pip install --no-cache-dir \
@@ -244,9 +289,20 @@ COPY src ./src
 
 RUN python3 -m venv --system-site-packages /opt/drost-ai-venv \
     && /opt/drost-ai-venv/bin/python -m pip install --no-cache-dir --ignore-installed playwright==1.55.0 \
+    && /opt/drost-ai-venv/bin/python -m pip install --no-cache-dir \
+        frida==17.24.3 \
+        frida-tools==14.11.0 \
+        objection==1.12.5 \
+        androguard==4.1.4 \
     && /opt/drost-ai-venv/bin/python -m pip install --no-cache-dir --no-deps --no-build-isolation /opt/drost-ai \
-    && mkdir -p /workspace /usr/share/drost/licenses/drost-ai \
-    && cp LICENSE THIRD_PARTY_NOTICES.md SOURCE_OFFER.md /usr/share/drost/licenses/drost-ai/
+    && mkdir -p /workspace /usr/share/drost/licenses/drost-ai /usr/share/drost/licenses/android/python \
+    && cp LICENSE THIRD_PARTY_NOTICES.md SOURCE_OFFER.md /usr/share/drost/licenses/drost-ai/ \
+    && for dist in /opt/drost-ai-venv/lib/python*/site-packages/*.dist-info; do \
+         case "$(basename "$dist")" in \
+           frida-*|frida_tools-*|objection-*|androguard-*) \
+             cp -r "$dist" /usr/share/drost/licenses/android/python/ ;; \
+         esac; \
+       done
 
 LABEL org.opencontainers.image.licenses="Apache-2.0 AND LicenseRef-Drost-Third-Party"
 

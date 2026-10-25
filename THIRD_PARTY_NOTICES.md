@@ -30,7 +30,10 @@ Kali and Debian packages retain their package copyright files at
 `/usr/share/doc/<package>/copyright` and common license texts at
 `/usr/share/common-licenses`. Python distributions generally retain license
 and metadata files in their `.dist-info` directories, and Ruby gems retain
-license metadata in their gem specifications or installed source trees.
+license metadata in their gem specifications or installed source trees. The
+Android Python packages (`frida`, `frida-tools`, `objection`, and `androguard`)
+also have their `.dist-info` license material copied to
+`/usr/share/drost/licenses/android/python`.
 
 The remediated Dockerfile additionally copies license and notice files found in
 the Go and Rust module caches and the direct source builds into
@@ -69,6 +72,26 @@ next release.
 | HashPump-partialhash | commit `b822764fa71209858c91378736d43d082c674e96` | <https://github.com/mheistermann/HashPump-partialhash> | MIT | License copied |
 | Docker Bench for Security | commit `154869da6418089decf7e1ab0cfca0e1cdfc5c49` | <https://github.com/docker/docker-bench-security> | Apache-2.0 | Pinned commit; license retained in cloned tree |
 
+## Android toolchain
+
+The `drost_android` workflow uses the following pinned upstream releases and
+Kali packages. The Dockerfile verifies the upstream archives with SHA256 before
+installing them.
+
+| Component | Audited version | Upstream | Declared license | Current status |
+| --- | --- | --- | --- | --- |
+| adb | Kali package `1:34.0.5-13` | <https://android.googlesource.com/platform/packages/modules/adb/> | Apache-2.0 | Package copyright retained |
+| aapt / aapt2 | Kali package `1:14~beta1-5` | <https://android.googlesource.com/platform/frameworks/base/+/master/tools/aapt2> | Apache-2.0 | Package copyright retained |
+| apksigner | Kali package `35.0.2-1` | <https://android.googlesource.com/platform/tools/apksig/> | Apache-2.0 | Package copyright retained |
+| zipalign | Kali package `1:10.0.0+r36-1.1+b1` | <https://android.googlesource.com/platform/build/+/master/tools/zipalign/> | Apache-2.0 | Package copyright retained |
+| Apktool | 3.0.3 | <https://github.com/iBotPeaches/Apktool> | Apache-2.0 | Notice required; license extracted from jar |
+| JADX | 1.5.6 | <https://github.com/skylot/jadx> | Apache-2.0 | Notice required; license copied from release archive |
+| Frida server | 17.24.3 | <https://github.com/frida/frida> | wxWindows Library Licence 3.1 | Notice required; `COPYING` copied; source offer applies |
+| frida-tools | 14.11.0 | <https://github.com/frida/frida-tools> | wxWindows Library Licence 3.1 | Notice required; dist-info license material copied |
+| objection | 1.12.5 | <https://github.com/sensepost/objection> | GPL-3.0-or-later | Source obligations apply; dist-info license material copied |
+| androguard | 4.1.4 | <https://github.com/androguard/androguard> | Apache-2.0 | Notice required; dist-info license material copied |
+| OpenJDK runtime (`default-jre-headless`) | Kali package `2:1.25-77` | <https://openjdk.org/> | GPL-2.0-with-classpath-exception | Package copyright retained; source offer applies |
+
 Each component also has transitive dependencies. Their package URLs, versions,
 checksums, and detected license expressions belong in the release SBOM.
 
@@ -91,6 +114,9 @@ fails a release if any of them reappear, including as a transitive package.
 | Nmap | Nmap 7.99 remains a separately executed program under NPSL-0.94. Preserve `/usr/share/doc/nmap/copyright`, identify the exact Kali source package, honor the corresponding-source offer, and do not describe Nmap itself as Apache-2.0. Organizations requiring a proprietary integration should obtain their own Nmap OEM advice or license. |
 | Volatility 3 | Preserve the complete Volatility Software License 1.0 text and corresponding source information. |
 | GPL/AGPL/CPL components | The image contains GPL, AGPL, LGPL, CPL, and other reciprocal licenses. Preserve notices and provide complete corresponding source or the published source offer for the exact binaries distributed. |
+| Frida / frida-tools | wxWindows Library Licence 3.1 is a reciprocal license. Preserve the complete `COPYING` text and provide corresponding source for the pinned Frida server binaries. |
+| objection | GPL-3.0-or-later. Preserve the dist-info license material and provide corresponding source. |
+| OpenJDK runtime | GPL-2.0-with-classpath-exception. Preserve the package copyright and corresponding-source information. |
 | Nikto databases | The database files are all-rights-reserved and may be distributed and used only with the full Nikto package. Keep the package intact and preserve its license text. |
 
 ## Release requirements
