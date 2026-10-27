@@ -24,6 +24,7 @@ dependencies = [
 
 [project.scripts]
 drost-mcp = "drost_ai.server:main"
+drost-android = "drost_ai.android_cli:main"
 
 [tool.setuptools.packages.find]
 where = ["src"]

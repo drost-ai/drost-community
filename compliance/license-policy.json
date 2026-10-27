@@ -35,6 +35,38 @@
     {
       "name": "subzy",
       "reason": "Retain GPL terms and corresponding-source information."
+    },
+    {
+      "name": "apktool",
+      "reason": "Apache-2.0 notice and license extracted from the pinned jar."
+    },
+    {
+      "name": "jadx",
+      "reason": "Apache-2.0 notice and license copied from the pinned release archive."
+    },
+    {
+      "name": "frida",
+      "reason": "wxWindows Library Licence 3.1; preserve COPYING and provide corresponding source for the pinned server binaries."
+    },
+    {
+      "name": "frida-tools",
+      "reason": "wxWindows Library Licence 3.1; preserve dist-info license material."
+    },
+    {
+      "name": "objection",
+      "reason": "GPL-3.0-or-later; preserve dist-info license material and provide corresponding source."
+    },
+    {
+      "name": "androguard",
+      "reason": "Apache-2.0; preserve dist-info license material."
+    },
+    {
+      "name": "android-sdk-platform-tools",
+      "reason": "Apache-2.0; retain Kali package copyright records for adb, aapt, apksigner, and zipalign."
+    },
+    {
+      "name": "openjdk",
+      "reason": "GPL-2.0-with-classpath-exception; retain package copyright and corresponding-source information."
     }
   ]
 }

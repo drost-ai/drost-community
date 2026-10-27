@@ -81,7 +81,7 @@ def main() -> None:
         listed = receive(process, 2)
         tools = listed["result"]["tools"]
         names = [tool["name"] for tool in tools]
-        expected_tool_count = 52 if compact else 159
+        expected_tool_count = 52 if compact else 160
         if len(names) != expected_tool_count:
             raise RuntimeError(f"expected {expected_tool_count} MCP tools; found {len(names)}")
         if len(names) != len(set(names)):
