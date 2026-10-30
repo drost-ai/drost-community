@@ -13,6 +13,7 @@ from mcp.server.fastmcp import FastMCP
 
 from . import __version__
 from .api_audit import audit_graphql, audit_jwt, audit_openapi, fuzz_api_parameter
+from .blockchain import audit_solidity, bytecode_audit, chain_info, contract_info, disassemble_evm, event_logs, read_contract, rpc_call, selector_lookup, storage_read, tx_inspect, wallet_info
 from .browser import BROWSER_MANAGER
 from .catalog import CATALOG, ToolSpec, category_counts
 from .engagements import WORKSPACE, create_engagement, get_engagement, list_engagements
@@ -62,6 +63,7 @@ GENERAL_EXECUTION_TOOL_COUNT = 2
 API_AUDIT_TOOL_COUNT = 4
 HTTP_WORKBENCH_TOOL_COUNT = 7
 BROWSER_TOOL_COUNT = 13
+BLOCKCHAIN_TOOL_COUNT = 12
 FIXED_MCP_TOOL_COUNT = (
     LEGACY_NATIVE_AND_WORKSPACE_TOOL_COUNT
     + ENGAGEMENT_MANAGEMENT_TOOL_COUNT
@@ -69,10 +71,13 @@ FIXED_MCP_TOOL_COUNT = (
     + API_AUDIT_TOOL_COUNT
     + HTTP_WORKBENCH_TOOL_COUNT
     + BROWSER_TOOL_COUNT
+    + BLOCKCHAIN_TOOL_COUNT
 )
 
 
 def _native_category(name: str) -> str:
+    if name.startswith("drost_evm_") or name == "drost_solidity_audit":
+        return "blockchain"
     if name.startswith("drost_browser_"):
         return "browser"
     if name.startswith("drost_http_session_") or name in {"drost_http_repeater", "drost_http_intruder", "drost_http_history"}:
@@ -209,6 +214,7 @@ def drost_catalog(name: str | None = None, query: str | None = None, category: s
         "api_audit_tool_count": API_AUDIT_TOOL_COUNT,
         "http_workbench_tool_count": HTTP_WORKBENCH_TOOL_COUNT,
         "browser_tool_count": BROWSER_TOOL_COUNT,
+        "blockchain_tool_count": BLOCKCHAIN_TOOL_COUNT,
         "advertised_mcp_tool_count": len(REGISTERED_CATALOG) + FIXED_MCP_TOOL_COUNT,
         "mcp_mode": os.environ.get("DROST_MCP_MODE", "full"),
         "workflow_kinds": sorted(WORKFLOW_STEPS),
@@ -348,6 +354,67 @@ async def drost_jwt_audit(engagement_id: str, token: str, expected_issuer: str =
 @mcp.tool(name="drost_api_fuzz", description="Run a caller-bounded, single-parameter API fuzz matrix against an authorized target and preserve complete response evidence. The caller selects payloads and max_requests.", structured_output=True)
 async def drost_api_fuzz(engagement_id: str, base_url: str, path: str, method: str, location: str, parameter: str, payloads: list[str], max_requests: int, headers: dict[str, str] | None = None, base_body: str = "", follow_redirects: bool = True) -> dict[str, Any]:
     return await asyncio.to_thread(fuzz_api_parameter, engagement_id, base_url, path, method, location, parameter, payloads, max_requests, headers, base_body, follow_redirects)
+
+
+@mcp.tool(name="drost_evm_chain_info", description="Identify an EVM JSON-RPC endpoint: chain ID, known chain name, head block, client version, gas price, and sync state. Use this before any contract call so the chain is never assumed.", structured_output=True)
+async def drost_evm_chain_info(rpc_url: str) -> dict[str, Any]:
+    return await asyncio.to_thread(chain_info, rpc_url)
+
+
+@mcp.tool(name="drost_evm_rpc_call", description="Perform one raw JSON-RPC request against an authorized EVM endpoint and return the complete result. Prefer the named EVM tools for chain, contract, storage, log, transaction, and wallet work.", structured_output=True)
+async def drost_evm_rpc_call(rpc_url: str, method: str, params: list[Any] | None = None) -> dict[str, Any]:
+    result = await asyncio.to_thread(rpc_call, rpc_url, method, params)
+    return {"rpc_url": rpc_url, "method": method, "params": list(params or []), "result": result}
+
+
+@mcp.tool(name="drost_evm_contract_info", description="Fingerprint a deployed contract from live bytecode: runtime size and hash, EIP-1167 minimal proxy target, EIP-1967 implementation/beacon/admin slots, PUSH4 selector map, ERC-20/721/165 detection, and static opcode flags.", structured_output=True)
+async def drost_evm_contract_info(rpc_url: str, address: str) -> dict[str, Any]:
+    return await asyncio.to_thread(contract_info, rpc_url, address)
+
+
+@mcp.tool(name="drost_evm_read_contract", description="Call one contract function with ABI-encoded arguments (or raw calldata) through eth_call and optionally decode the return data for the supplied output types.", structured_output=True)
+async def drost_evm_read_contract(rpc_url: str, address: str, signature: str, arguments: list[Any] | None = None, output_types: list[str] | None = None, block: str = "latest") -> dict[str, Any]:
+    return await asyncio.to_thread(read_contract, rpc_url, address, signature, arguments, output_types, block)
+
+
+@mcp.tool(name="drost_evm_storage_read", description="Read one or more raw storage slots of an address, including EIP-1967 proxy and implementation slots, without interpreting layout.", structured_output=True)
+async def drost_evm_storage_read(rpc_url: str, address: str, slot: str, length: int = 1) -> dict[str, Any]:
+    return await asyncio.to_thread(storage_read, rpc_url, address, slot, length)
+
+
+@mcp.tool(name="drost_evm_event_logs", description="Collect contract logs for an explicit block window, optionally pinned to one event signature and additional indexed topics. Returned logs are the complete provider response.", structured_output=True)
+async def drost_evm_event_logs(rpc_url: str, address: str | None = None, topics: list[Any] | None = None, from_block: str = "latest", to_block: str = "latest", event_signature: str = "") -> dict[str, Any]:
+    return await asyncio.to_thread(event_logs, rpc_url, address, topics, from_block, to_block, event_signature)
+
+
+@mcp.tool(name="drost_evm_tx_inspect", description="Inspect a transaction and its receipt: signer, recipient, value, gas, input selector, decoded status, contract creation, and log count.", structured_output=True)
+async def drost_evm_tx_inspect(rpc_url: str, tx_hash: str) -> dict[str, Any]:
+    return await asyncio.to_thread(tx_inspect, rpc_url, tx_hash)
+
+
+@mcp.tool(name="drost_evm_wallet_info", description="Profile an EVM account: native balance, nonce, contract status, code size, and chain ID.", structured_output=True)
+async def drost_evm_wallet_info(rpc_url: str, address: str) -> dict[str, Any]:
+    return await asyncio.to_thread(wallet_info, rpc_url, address)
+
+
+@mcp.tool(name="drost_evm_selector_lookup", description="Resolve a 4-byte function selector from the built-in selector table, with an optional 4byte.directory fallback that fails gracefully and never blocks the result.", structured_output=True)
+async def drost_evm_selector_lookup(selector: str, allow_remote: bool = False) -> dict[str, Any]:
+    return await asyncio.to_thread(selector_lookup, selector, allow_remote)
+
+
+@mcp.tool(name="drost_evm_disassemble", description="Disassemble EVM bytecode with exact PUSH0..PUSH32 handling, trailing CBOR metadata detection, a valid jump-destination map, and offsets for DELEGATECALL, CALLCODE, SELFDESTRUCT, CREATE2, and TIMESTAMP.", structured_output=True)
+async def drost_evm_disassemble(bytecode: str, max_instructions: int = 20000) -> dict[str, Any]:
+    return await asyncio.to_thread(disassemble_evm, bytecode, max_instructions)
+
+
+@mcp.tool(name="drost_evm_bytecode_audit", description="Derive disassembly-level review items from bytecode with byte offsets: selfdestruct, delegatecall/callcode, create2, tx.origin authorization, discarded call results, timestamp dependence, and weak randomness. Every item is explicitly suspected.", structured_output=True)
+async def drost_evm_bytecode_audit(bytecode: str) -> dict[str, Any]:
+    return await asyncio.to_thread(bytecode_audit, bytecode)
+
+
+@mcp.tool(name="drost_solidity_audit", description="Review engagement-relative Solidity files or directories for reentrancy ordering, tx.origin authorization, delegatecall, selfdestruct, unchecked low-level calls, missing access control, floating pragma, timestamp dependence, ecrecover zero checks, and inline assembly. Results are line-numbered leads persisted in the engagement.", structured_output=True)
+async def drost_solidity_audit(engagement_id: str, path: str) -> dict[str, Any]:
+    return await asyncio.to_thread(audit_solidity, engagement_id, path)
 
 
 @mcp.tool(name="drost_http_session_create", description="Create a persistent engagement-scoped HTTP workbench session with declared target scope, default headers, cookies, TLS, and redirect behavior.", structured_output=True)
@@ -497,6 +564,7 @@ def self_test() -> dict[str, Any]:
         "api_audit_tools": API_AUDIT_TOOL_COUNT,
         "http_workbench_tools": HTTP_WORKBENCH_TOOL_COUNT,
         "browser_tools": BROWSER_TOOL_COUNT,
+        "blockchain_tools": BLOCKCHAIN_TOOL_COUNT,
         "total_mcp_tools": len(REGISTERED_CATALOG) + FIXED_MCP_TOOL_COUNT,
         "registered_external_tools": len(REGISTERED_CATALOG),
         "mcp_mode": os.environ.get("DROST_MCP_MODE", "full"),
