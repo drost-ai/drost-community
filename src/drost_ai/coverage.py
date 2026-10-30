@@ -24,7 +24,7 @@ REFERENCE_FUNCTIONS = frozenset(
     kismet wireshark tshark tcpdump
     smbmap volatility sleuthkit autopsy evil-winrm airmon-ng airodump-ng aireplay-ng aircrack-ng
     msfvenom msfconsole
-    slither mythril solc cast forge etherscan 4byte-directory evm-disassembler web3
+    slither mythril cast etherscan 4byte-directory evm-disassembler web3
     """.split()
 )
 
@@ -41,7 +41,6 @@ REFERENCE_ALIASES: dict[str, str] = {
     "etherscan": "drost_evm_contract_info",
     "evm-disassembler": "drost_evm_disassemble",
     "exploit-db": "drost_exploit_search",
-    "forge": "drost_evm_tx_inspect",
     "graphql-scanner": "drost_graphql_request",
     "hashcat-utils": "drost_hashcat",
     "have-i-been-pwned": "drost_hibp_password_check",
@@ -65,7 +64,6 @@ REFERENCE_ALIASES: dict[str, str] = {
     "slither": "drost_solidity_audit",
     "sleuthkit": "drost_sleuthkit_fls",
     "social-analyzer": "drost_sherlock",
-    "solc": "drost_evm_disassemble",
     "stegsolve": "drost_zsteg",
     "theharvester": "drost_theharvester",
     "burpsuite": "drost_zap",

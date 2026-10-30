@@ -229,16 +229,44 @@ class BlockchainUnitTests(unittest.TestCase):
         local = selector_lookup("0xa9059cbb")
         self.assertEqual(local["signature"], "transfer(address,uint256)")
         self.assertEqual(local["source"], "local")
+        self.assertFalse(local["ambiguous"])
         self.assertFalse(local["remote_attempted"])
 
         unknown = selector_lookup("0xdeadbeef")
         self.assertIsNone(unknown["signature"])
+        self.assertFalse(unknown["ambiguous"])
         self.assertEqual(unknown["candidates"], [])
 
         with patch("requests.get", side_effect=RuntimeError("offline")):
             degraded = selector_lookup("0xdeadbeef", allow_remote=True)
         self.assertEqual(degraded["candidates"], [])
+        self.assertFalse(degraded["ambiguous"])
         self.assertIn("offline", degraded["remote_error"])
+
+    def test_selector_lookup_flags_4byte_collisions(self):
+        class FakeResponse:
+            def __init__(self, signatures):
+                self.signatures = signatures
+
+            def raise_for_status(self):
+                return None
+
+            def json(self):
+                return {"results": [{"text_signature": sig} for sig in self.signatures]}
+
+        colliding = ["workMyDirefulOwner(uint256,uint256)", "transfer(address,uint256)"]
+        with patch("requests.get", return_value=FakeResponse(colliding)):
+            ambiguous = selector_lookup("0xdeadbeef", allow_remote=True)
+        self.assertIsNone(ambiguous["signature"])
+        self.assertTrue(ambiguous["ambiguous"])
+        self.assertEqual(ambiguous["candidates"], colliding)
+        self.assertEqual(ambiguous["source"], "4byte.directory")
+
+        with patch("requests.get", return_value=FakeResponse(["resolved(uint256)"])):
+            single = selector_lookup("0xdeadbeef", allow_remote=True)
+        self.assertEqual(single["signature"], "resolved(uint256)")
+        self.assertFalse(single["ambiguous"])
+        self.assertEqual(single["source"], "4byte.directory")
 
 
 class BlockchainRpcTests(unittest.TestCase):

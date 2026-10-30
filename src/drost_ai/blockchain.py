@@ -695,6 +695,7 @@ def selector_lookup(selector: str, allow_remote: bool = False, timeout: float = 
     result: dict[str, Any] = {
         "selector": "0x" + raw,
         "signature": signature,
+        "ambiguous": False,
         "candidates": [signature] if signature else [],
         "source": "local" if signature else None,
         "remote_attempted": False,
@@ -720,8 +721,13 @@ def selector_lookup(selector: str, allow_remote: bool = False, timeout: float = 
             if isinstance(item, dict) and item.get("text_signature")
         ]
         if candidates:
+            # 4byte.directory orders hash collisions by insertion, not popularity,
+            # so a single entry is never safe to assert when the set disagrees.
             result["candidates"] = candidates
-            result["signature"] = candidates[0]
+            if len(set(candidates)) == 1:
+                result["signature"] = candidates[0]
+            else:
+                result["ambiguous"] = True
             result["source"] = "4byte.directory"
     except Exception as exc:  # noqa: BLE001 - resolution is optional and must never fail the call
         result["remote_error"] = f"{type(exc).__name__}: {exc}"
