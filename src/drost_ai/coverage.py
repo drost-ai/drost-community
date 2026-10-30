@@ -24,18 +24,24 @@ REFERENCE_FUNCTIONS = frozenset(
     kismet wireshark tshark tcpdump
     smbmap volatility sleuthkit autopsy evil-winrm airmon-ng airodump-ng aireplay-ng aircrack-ng
     msfvenom msfconsole
+    slither mythril solc cast forge etherscan 4byte-directory evm-disassembler web3
     """.split()
 )
 
 
 REFERENCE_ALIASES: dict[str, str] = {
+    "4byte-directory": "drost_evm_selector_lookup",
     "angr": "drost_angr_analyze",
     "api-schema-analyzer": "drost_openapi_inspect",
     "autopsy": "drost_sleuthkit_fls",
     "bulk-extractor": "drost_bulk_extractor",
+    "cast": "drost_evm_read_contract",
     "censys-cli": "drost_censys",
     "clair": "drost_trivy",
+    "etherscan": "drost_evm_contract_info",
+    "evm-disassembler": "drost_evm_disassemble",
     "exploit-db": "drost_exploit_search",
+    "forge": "drost_evm_tx_inspect",
     "graphql-scanner": "drost_graphql_request",
     "hashcat-utils": "drost_hashcat",
     "have-i-been-pwned": "drost_hibp_password_check",
@@ -46,6 +52,7 @@ REFERENCE_ALIASES: dict[str, str] = {
     "maltego": "drost_spiderfoot",
     "metasploit": "drost_metasploit",
     "msfconsole": "drost_metasploit",
+    "mythril": "drost_evm_bytecode_audit",
     "one-gadget": "drost_one_gadget",
     "outguess": "drost_steghide",
     "photorec": "drost_testdisk",
@@ -55,12 +62,15 @@ REFERENCE_ALIASES: dict[str, str] = {
     "scout-suite": "drost_scout_suite",
     "searchsploit": "drost_exploit_search",
     "shodan-cli": "drost_shodan",
+    "slither": "drost_solidity_audit",
     "sleuthkit": "drost_sleuthkit_fls",
     "social-analyzer": "drost_sherlock",
+    "solc": "drost_evm_disassemble",
     "stegsolve": "drost_zsteg",
     "theharvester": "drost_theharvester",
     "burpsuite": "drost_zap",
     "waybackurls": "drost_urlfinder",
+    "web3": "drost_evm_rpc_call",
     "wpscan": "drost_whatweb",
     "falco": "drost_process_snapshot",
     "volatility": "drost_volatility",

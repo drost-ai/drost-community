@@ -39,6 +39,17 @@ class CatalogTests(unittest.TestCase):
                 "drost_jwt_decode",
                 "drost_scan_summary",
                 "drost_finding_report",
+                "drost_evm_chain_info",
+                "drost_evm_contract_info",
+                "drost_evm_disassemble",
+                "drost_evm_bytecode_audit",
+                "drost_evm_storage_read",
+                "drost_evm_read_contract",
+                "drost_evm_event_logs",
+                "drost_evm_tx_inspect",
+                "drost_evm_selector_lookup",
+                "drost_solidity_audit",
+                "drost_evm_wallet_info",
             }
         )
         referenced = {step["tool"] for steps in WORKFLOW_STEPS.values() for step in steps}

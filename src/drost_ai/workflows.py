@@ -87,6 +87,20 @@ WORKFLOW_STEPS: dict[str, tuple[dict[str, Any], ...]] = {
         {"tool": "drost_aircrack", "purpose": "Analyze captured handshakes"},
         {"tool": "drost_kismet", "purpose": "Perform wireless discovery and monitoring"},
     ),
+    "smart_contract": (
+        {"tool": "drost_evm_chain_info", "purpose": "Confirm the chain, client, and block context"},
+        {"tool": "drost_evm_contract_info", "purpose": "Fingerprint bytecode, proxies, and token standards"},
+        {"tool": "drost_evm_disassemble", "purpose": "Map instructions, jump destinations, and privileged opcodes"},
+        {"tool": "drost_evm_bytecode_audit", "purpose": "Derive offset-referenced bytecode review items"},
+        {"tool": "drost_evm_storage_read", "purpose": "Read proxy and implementation storage slots"},
+        {"tool": "drost_evm_read_contract", "purpose": "Read live contract state through ABI-encoded calls"},
+        {"tool": "drost_evm_event_logs", "purpose": "Collect events for privileged actions"},
+        {"tool": "drost_evm_tx_inspect", "purpose": "Inspect transactions that touched the contract"},
+        {"tool": "drost_evm_selector_lookup", "purpose": "Resolve observed selectors to signatures"},
+        {"tool": "drost_solidity_audit", "purpose": "Review supplied Solidity source with line references"},
+        {"tool": "drost_evm_wallet_info", "purpose": "Profile in-scope or attacker-controlled accounts"},
+        {"tool": "drost_finding_report", "purpose": "Persist validated findings"},
+    ),
 }
 
 
@@ -118,6 +132,19 @@ def recommend_tools(objective: str, target_type: str = "web") -> dict[str, Any]:
         "ctf": ("ctf", "challenge", "flag", "puzzle"),
         "credentials": ("password", "credential", "hash", "authentication"),
         "wireless": ("wireless", "wifi", "802.11", "wpa"),
+        "smart_contract": (
+            "smart contract",
+            "solidity",
+            "evm",
+            "ethereum",
+            "erc20",
+            "erc721",
+            "defi",
+            "bytecode",
+            "abi",
+            "web3",
+            "blockchain",
+        ),
     }
     for kind, needles in keywords.items():
         scores[kind] = sum(needle in text for needle in needles)

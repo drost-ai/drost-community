@@ -49,7 +49,7 @@ class DistributionComplianceTests(unittest.TestCase):
         self.assertIn("LicenseRef-Drost-Third-Party", PUBLISH_WORKFLOW)
 
     def test_readme_advertises_current_full_tool_count(self) -> None:
-        self.assertIn("159 offensive-security MCP tools", README)
+        self.assertIn("171 offensive-security MCP tools", README)
         self.assertNotIn("128 offensive-security tools", README)
 
     def test_release_checksums_are_archive_relative(self) -> None:

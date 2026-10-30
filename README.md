@@ -19,10 +19,10 @@
 </p>
 
 Drost Community Edition is the public release of **Drost-v1**: one Kali-based
-Docker image containing an MCP server, 105 executable-backed security tools,
-GNU grep and jq for engagement artifact analysis, and 52 Drost-native execution,
-engagement, API, HTTP, browser, security, and workflow tools for agent-driven
-and operator-driven security work.
+Docker image containing an MCP server, 107 executable-backed security tools,
+GNU grep and jq for engagement artifact analysis, and 64 Drost-native execution,
+engagement, API, HTTP, browser, blockchain, security, and workflow tools for
+agent-driven and operator-driven security work.
 
 It runs over stdio, publishes no network service, and works with Tess and other
 MCP clients that can launch a local command. Images can be built for
@@ -59,15 +59,15 @@ the original Drost foundation.
 
 ## What is included
 
-- **159 offensive-security MCP tools:** 107 executable-backed tools and 52
-  Drost-native execution, engagement, API, HTTP, browser, security, and workflow
-  tools. The catalog includes grep, jq, Bash, Python, browser automation, and
-  persistent engagement workspaces.
+- **171 offensive-security MCP tools:** 107 executable-backed tools and 64
+  Drost-native execution, engagement, API, HTTP, browser, blockchain, security,
+  and workflow tools. The catalog includes grep, jq, Bash, Python, browser
+  automation, EVM and Solidity analysis, and persistent engagement workspaces.
 - **One container:** the MCP server and its security executables share the same
   Kali-based image.
 - **Direct stdio transport:** no HTTP API, listening port, or separate worker
   service.
-- **Full MCP mode by default:** all 159 named tools are advertised directly so
+- **Full MCP mode by default:** all 171 named tools are advertised directly so
   the model can select recognizable tools such as `drost_nmap`,
   `drost_httpx`, and `drost_nuclei`.
 - **Persistent isolated engagements:** the server generates a random engagement
@@ -103,13 +103,56 @@ The executable-backed catalog includes:
 Drost-native tools add Bash and Python execution, filtered catalog discovery,
 workspace operations, evidence-backed OpenAPI, GraphQL, JWT and API fuzz
 auditing, a persistent scoped HTTP repeater/intruder workbench, containerized
-Chromium automation, CVE lookup, file hashing, indicator extraction,
-engagement planning, tool recommendations, attack-chain organization, and scan
-summaries.
+Chromium automation, EVM JSON-RPC and bytecode analysis, Solidity source review,
+CVE lookup, file hashing, indicator extraction, engagement planning, tool
+recommendations, attack-chain organization, and scan summaries.
 
 Use `drost_catalog(name="drost_python", include_contracts=true)` for one exact
 contract or `drost_catalog(query="json")` for concise discovery. An unfiltered
 call returns counts instead of dumping the complete catalog.
+
+## Blockchain and smart contracts
+
+Twelve Drost-native tools cover EVM and Solidity work without adding a single
+dependency: JSON-RPC and ABI handling use the standard library plus `requests`,
+and every EVM address, calldata blob, and selector is produced locally.
+
+| Tool | Purpose |
+| --- | --- |
+| `drost_evm_chain_info` | Chain ID, head block, client version, gas price, sync state |
+| `drost_evm_rpc_call` | One raw JSON-RPC request with the complete result |
+| `drost_evm_contract_info` | Bytecode hash and size, EIP-1167 proxy target, EIP-1967 slots, ERC-20/721/165 detection |
+| `drost_evm_read_contract` | ABI-encoded `eth_call` with optional return decoding |
+| `drost_evm_storage_read` | Raw storage slots, including proxy and implementation slots |
+| `drost_evm_event_logs` | Logs for an explicit block window, optionally pinned to an event topic |
+| `drost_evm_tx_inspect` | Transaction and receipt with decoded input selector |
+| `drost_evm_wallet_info` | Balance, nonce, contract status, chain ID |
+| `drost_evm_selector_lookup` | Local selector table with opt-in 4byte.directory fallback |
+| `drost_evm_disassemble` | PUSH0..PUSH32-correct disassembly, metadata tail, jump destinations, privileged opcodes |
+| `drost_evm_bytecode_audit` | Offset-referenced review items for selfdestruct, delegatecall, tx.origin authorization, discarded call results, and weak randomness |
+| `drost_solidity_audit` | Line-numbered source leads for reentrancy ordering, access control, delegatecall, selfdestruct, ecrecover, and pragma drift |
+
+Keccak-256 is implemented inside the image because `hashlib.sha3_256` is NIST
+SHA3-256 and produces different selectors. Bytecode and source findings are
+returned as `suspected` or `review` leads with an exact byte offset or line
+number; they are never reported as confirmed vulnerabilities without source or
+execution evidence. `drost_solidity_audit` persists its JSON report under
+`evidence/blockchain/` in the engagement workspace.
+
+Example workflow against an authorized deployment:
+
+```text
+drost_engagement_plan(kind="smart_contract", target="0xToken...")
+drost_evm_chain_info(rpc_url="https://rpc.example")
+drost_evm_contract_info(rpc_url="https://rpc.example", address="0xToken...")
+drost_evm_storage_read(rpc_url="https://rpc.example", address="0xToken...", slot="0x360894...")
+drost_evm_read_contract(rpc_url="https://rpc.example", address="0xToken...",
+  signature="owner()", output_types=["address"])
+drost_evm_event_logs(rpc_url="https://rpc.example", address="0xToken...",
+  event_signature="OwnershipTransferred(address,address)", from_block=0)
+drost_evm_disassemble(bytecode="0x6080...")
+drost_solidity_audit(engagement_id="eng_...", path="contracts/")
+```
 
 ## Architecture
 
@@ -271,7 +314,7 @@ Restart Tess after registration. Then ask it to call `drost_catalog`, choose
 an authorized tool, create an engagement with `drost_engagement_create`, and
 use the returned `engagement_id` for the engagement's tool calls.
 
-Full mode is the default. It exposes all 159 MCP tools directly and requires no
+Full mode is the default. It exposes all 171 MCP tools directly and requires no
 mode environment variable.
 
 ## Connect agent runtimes
@@ -406,7 +449,7 @@ enforces a strict tool-schema limit:
 docker exec -i -e DROST_MCP_MODE=compact drost-ai drost-mcp
 ```
 
-Compact mode advertises 52 Drost-native tools instead of all 159 schemas. The
+Compact mode advertises 64 Drost-native tools instead of all 171 schemas. The
 complete executable catalog remains available
 indirectly through `drost_catalog` and `drost_execute`, but direct names such as
 `drost_nmap` are not advertised to the model.
